@@ -1,0 +1,65 @@
+<div id="map" style="width:1000px; height:600px;"></div>
+<script src="https://webapi.amap.com/maps?v=2.0&key=1389a7514ce65016496e0ee1349282b7"></script>
+<script>
+    // 初始化地图（关闭自动规划，强制按坐标绕行）
+    var map = new AMap.Map("map", {
+        resizeEnable: true,
+        viewMode: '3D',
+        zoom: 10,
+        center: [122.5, 31.0],
+        // 关键：禁用高德自动绕行，强制按自定义坐标绘制
+        features: ['bg', 'road', 'point', 'coastline'],
+        // 关闭自动纠偏（必须！否则会穿陆地）
+        autoFitView: false
+    });
+
+    // 加载航线数据
+    fetch('/static/route_data.json')
+        .then(res => res.json())
+        .then(data => {
+            // 绘制严格绕岛航线（硬编码坐标，不依赖自动规划）
+            var polyline = new AMap.Polyline({
+                path: data.points.map(p => new AMap.LngLat(p[0], p[1])),
+                strokeColor: "#0033FF",
+                strokeWeight: 6,
+                strokeOpacity: 0.8,
+                lineJoin: 'round',
+                // 关键：关闭高德自动调整，强制按坐标绘制
+                arclength: false
+            });
+            map.add(polyline);
+
+            // 标记关键绕岛点位（验证是否经过目标海域）
+            [
+                [122.20, 30.68, '衢山岛-岱山中间'],
+                [122.40, 30.58, '小磨盘礁石北'],
+                [122.60, 30.48, '北馒头山-黄礁中间']
+            ].forEach(([lng, lat, title]) => {
+                new AMap.Marker({
+                    position: new AMap.LngLat(lng, lat),
+                    icon: 'https://a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-gold.png',
+                    map: map,
+                    title: title
+                });
+            });
+
+            // 自动缩放到航线范围
+            var bounds = new AMap.Bounds();
+            data.points.forEach(p => bounds.extend(new AMap.LngLat(p[0], p[1])));
+            map.setBounds(bounds, { padding: [50, 50, 50, 50] });
+
+            // 标记起点/终点
+            new AMap.Marker({
+                position: data.points[0],
+                icon: 'https://a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-green.png',
+                map: map,
+                title: '上海起点'
+            });
+            new AMap.Marker({
+                position: data.points[data.points.length - 1],
+                icon: 'https://a.amap.com/jsapi_demos/static/demo-center/icons/poi-marker-red.png',
+                map: map,
+                title: '宁波终点'
+            });
+        });
+</script>
