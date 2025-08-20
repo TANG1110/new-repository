@@ -2,13 +2,48 @@
     "builds": [
         {
             "src": "app.py",
-            "use": "@vercel/python"
+            "use": "@vercel/python",
+            "config": {
+                "runtime": "python3.11",
+                "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT",
+                "maxLambdaSize": "25mb",
+                "installCommand": "pip install --upgrade pip && pip install -r requirements.txt"
+            }
+        },
+        {
+            "src": "templates/**/*",
+            "use": "@vercel/static",
+            "config": {
+                "publicPath": "/templates/",
+                "cacheControl": "public, max-age=3600"
+            }
         }
     ],
     "routes": [
         {
+            "src": "/templates/(.*)",
+            "dest": "templates/$1"
+        },
+        {
             "src": "/(.*)",
-            "dest": "app.py"
+            "dest": "app.py",
+            "headers": [
+                {
+                    "key": "Access-Control-Allow-Origin",
+                    "value": "*"
+                },
+                {
+                    "key": "Access-Control-Allow-Methods",
+                    "value": "GET, POST, OPTIONS"
+                },
+                {
+                    "key": "Access-Control-Allow-Headers",
+                    "value": "Content-Type"
+                }
+            ]
         }
-    ]
+    ],
+    "env": {
+        "PYTHONUNBUFFERED": "1"
+    }
 }

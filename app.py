@@ -87,6 +87,31 @@ def route_map():
         return "航线地图页面加载失败"
 print("route_map 路由定义成功")
 
+# 节油计算器API路由
+@app.route('/fuel_saving', methods=['GET'])
+def fuel_saving():
+    try:
+        # 获取请求参数并转换为浮点数
+        original_speed = float(request.args.get('original_speed'))  # 原航速（km/h）
+        optimized_speed = float(request.args.get('optimized_speed'))  # 优化航速
+        distance = float(request.args.get('distance'))  # 航程（km）
+        
+        # 计算节油量（吨）
+        saving = (original_speed - optimized_speed) * distance * 0.8
+        result = {"fuel_saving_ton": round(saving, 2)}
+        
+        # 打印日志
+        print(f"节油量计算：原航速={original_speed}, 优化航速={optimized_speed}, 航程={distance}, 结果={result}")
+        return result
+    
+    except ValueError as e:
+        print("参数格式错误：", str(e))
+        return {"error": "参数错误", "message": "请输入有效的数字参数"}, 400
+    except Exception as e:
+        print("计算过程出错：", str(e))
+        return {"error": "服务器错误", "message": str(e)}, 500
+print("fuel_saving 路由定义成功")
+
 # 启动服务
 if __name__ == '__main__':
     print("\n已注册的路由列表：")
