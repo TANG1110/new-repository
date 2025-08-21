@@ -7,11 +7,11 @@
         },
         {
             "src": "static/**/*",
-            "use": "@vercel/static@1.0.1"
+            "use": "@vercel/static@2.0.0"
         },
         {
             "src": "templates/**/*",
-            "use": "@vercel/static@1.0.1"
+            "use": "@vercel/static@2.0.0"
         }
     ],
     "routes": [
