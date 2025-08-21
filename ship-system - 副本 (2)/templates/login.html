@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}船舶节油系统 - 登录{% endblock %}
+
+{% block head_css %}
+<style>
+    .login-card {
+        max-width: 380px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        margin: 60px auto;
+    }
+
+    .login-header {
+        background-color: #1a5f7a;
+        color: white;
+        padding: 30px 25px;
+        text-align: center;
+    }
+
+    .ship-logo {
+        font-size: 40px;
+        margin-bottom: 15px;
+    }
+
+    .login-form {
+        padding: 30px 25px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #4a5568;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+
+    .input-wrapper .icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #a0aec0;
+    }
+
+    .login-form input {
+        width: 100%;
+        padding: 12px 12px 12px 40px;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border-color 0.3s ease;
+    }
+
+    .login-form input:focus {
+        outline: none;
+        border-color: #3182ce;
+        box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+    }
+
+    .login-btn {
+        width: 100%;
+        padding: 14px;
+        background-color: #1a5f7a;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .login-btn:hover {
+        background-color: #144a63;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(26, 95, 122, 0.2);
+    }
+
+    .login-footer {
+        padding: 15px 25px;
+        background-color: #f7fafc;
+        border-top: 1px solid #edf2f7;
+        text-align: center;
+    }
+
+    .login-footer p {
+        color: #718096;
+        font-size: 13px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-card">
+    <div class="login-header">
+        <div class="ship-logo">⚓</div>
+        <h2>船舶节油系统</h2>
+        <p>请登录您的账户</p>
+    </div>
+
+    <form action="/login" method="post" class="login-form">
+        <div class="form-group">
+            <label for="username">用户名</label>
+            <div class="input-wrapper">
+                <span class="icon">👤</span>
+                <input type="text" id="username" name="username" required placeholder="请输入用户名">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="password">密码</label>
+            <div class="input-wrapper">
+                <span class="icon">🔒</span>
+                <input type="password" id="password" name="password" required placeholder="请输入密码">
+            </div>
+        </div>
+
+        <button type="submit" class="login-btn">登录系统</button>
+    </form>
+
+    <div class="login-footer">
+        <p>© 2023 船舶节油管理系统</p>
+    </div>
+</div>
+{% endblock %}
