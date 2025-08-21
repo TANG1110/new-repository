@@ -1,0 +1,31 @@
+{
+    "routes": [
+        {
+            "src": "/templates/(.*)",
+            "dest": "templates/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "app.py",
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            }
+        }
+    ],
+    "env": {
+        "PYTHONUNBUFFERED": "1"
+    },
+    "functions": {
+        "app.py": {
+            "runtime": "@vercel/python@4.0.0",
+            "memory": 1024,
+            "maxDuration": 60
+        }
+    },
+    "static": {
+        "publicPath": "/templates/",
+        "cacheControl": "public, max-age=3600"
+    }
+}
