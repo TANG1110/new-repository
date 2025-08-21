@@ -2,34 +2,14 @@
     "version": 2,
     "builds": [
         {
-            "src": "api/app.py",
+            "src": "app.py",
             "use": "@vercel/python@4.0.0"
-        },
-        {
-            "src": "static/**/*",
-            "use": "@vercel/static@2.0.0"
-        },
-        {
-            "src": "templates/**/*",
-            "use": "@vercel/static@2.0.0"
         }
     ],
     "routes": [
         {
-            "src": "/static/(.*)",
-            "dest": "static/$1"
-        },
-        {
-            "src": "/templates/(.*)",
-            "dest": "templates/$1"
-        },
-        {
             "src": "/(.*)",
-            "dest": "api/app.py"
+            "dest": "app.py"
         }
-    ],
-    "env": {
-        "PYTHONUNBUFFERED": "1",
-        "FLASK_APP": "api/app.py"
-    }
+    ]
 }
