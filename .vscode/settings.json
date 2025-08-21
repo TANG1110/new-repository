@@ -2,5 +2,13 @@
     "python.terminal.activateEnvironment": true,
     "python-envs.pythonProjects": [],
     "python-envs.defaultEnvManager": "ms-python.python:venv",
-    "git.path": "C:/ProgramFiles/Git/git.exe"
+    "git.path": "C:/Program Files/Git/git.exe",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUnknownMemberType": "none",
+        "reportMissingImports": "error",
+        "reportMissingModuleSource": "error"
+    },
+    "python.analysis.extraPaths": [],
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.useLibraryCodeForTypes": true
 }

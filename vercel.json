@@ -1,8 +1,27 @@
 {
+    "version": 2,
+    "builds": [
+        {
+            "src": "app.py",
+            "use": "@vercel/python@4.0.0"
+        },
+        {
+            "src": "templates/**/*",
+            "use": "@vercel/static@0.1"
+        },
+        {
+            "src": "static/**/*",
+            "use": "@vercel/static@0.1"
+        }
+    ],
     "routes": [
         {
             "src": "/templates/(.*)",
             "dest": "templates/$1"
+        },
+        {
+            "src": "/static/(.*)",
+            "dest": "static/$1"
         },
         {
             "src": "/(.*)",
@@ -15,11 +34,12 @@
         }
     ],
     "env": {
-        "PYTHONUNBUFFERED": "1"
+        "PYTHONUNBUFFERED": "1",
+        "FLASK_APP": "app.py",
+        "FLASK_ENV": "production"
     },
     "functions": {
         "app.py": {
-            "runtime": "@vercel/python@4.0.0",
             "memory": 1024,
             "maxDuration": 60
         }
