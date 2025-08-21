@@ -1,0 +1,116 @@
+{% extends "base.html" %} <!-- 继承基础模板，自动加载favicon.ico -->
+
+{% block title %}登录成功 - 船舶系统{% endblock %}
+
+{% block content %}
+<div class="success-container">
+    <div class="success-card">
+        <!-- 成功状态图标 -->
+        <div class="success-icon">✓</div>
+
+        <h2>登录成功！</h2>
+        <p class="success-desc">欢迎使用船舶航线系统，请进入可视化页面进行操作</p>
+
+        <!-- 功能按钮区 -->
+        <div class="btn-group">
+            <a href="/route_map" class="btn primary-btn">进入航线可视化</a>
+            <a href="/" class="btn secondary-btn">返回首页</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* 全局居中布局 */
+    .success-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f5f8ff;
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+    }
+
+    /* 卡片样式 */
+    .success-card {
+        width: 100%;
+        max-width: 450px;
+        padding: 40px 30px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        border-top: 4px solid #2196F3;
+        text-align: center;
+    }
+
+    /* 成功图标 */
+    .success-icon {
+        width: 60px;
+        height: 60px;
+        line-height: 60px;
+        margin: 0 auto 25px;
+        background-color: #e3f2fd;
+        color: #2196F3;
+        border-radius: 50%;
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+    .success-card h2 {
+        color: #2d3748;
+        margin: 0 0 12px;
+        font-size: 24px;
+    }
+
+    .success-desc {
+        color: #64748b;
+        margin: 0 0 30px;
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    /* 按钮组布局 */
+    .btn-group {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    /* 按钮样式统一 */
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+
+    /* 主按钮（核心操作） */
+    .primary-btn {
+        background-color: #2196F3;
+        color: white;
+    }
+
+    .primary-btn:hover {
+        background-color: #0b7dda;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(11, 125, 218, 0.3);
+    }
+
+    /* 次要按钮（辅助操作） */
+    .secondary-btn {
+        background-color: #f1f5f9;
+        color: #2d3748;
+    }
+
+    .secondary-btn:hover {
+        background-color: #e2e8f0;
+    }
+</style>
+{% endblock %}

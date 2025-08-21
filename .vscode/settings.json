@@ -1,5 +1,6 @@
 {
     "python.terminal.activateEnvironment": true,
     "python-envs.pythonProjects": [],
-    "python-envs.defaultEnvManager": "ms-python.python:venv"
+    "python-envs.defaultEnvManager": "ms-python.python:venv",
+    "git.path": "C:/ProgramFiles/Git/git.exe"
 }

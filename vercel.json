@@ -1,24 +1,4 @@
 {
-    "builds": [
-        {
-            "src": "app.py",
-            "use": "@vercel/python",
-            "config": {
-                "runtime": "python3.11",
-                "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT",
-                "maxLambdaSize": "25mb",
-                "installCommand": "pip install --upgrade pip && pip install -r requirements.txt"
-            }
-        },
-        {
-            "src": "templates/**/*",
-            "use": "@vercel/static",
-            "config": {
-                "publicPath": "/templates/",
-                "cacheControl": "public, max-age=3600"
-            }
-        }
-    ],
     "routes": [
         {
             "src": "/templates/(.*)",
@@ -36,5 +16,16 @@
     ],
     "env": {
         "PYTHONUNBUFFERED": "1"
+    },
+    "functions": {
+        "app.py": {
+            "runtime": "@vercel/python@4.0.0",
+            "memory": 1024,
+            "maxDuration": 60
+        }
+    },
+    "static": {
+        "publicPath": "/templates/",
+        "cacheControl": "public, max-age=3600"
     }
 }
