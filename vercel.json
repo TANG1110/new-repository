@@ -24,8 +24,6 @@
             "maxDuration": 60
         }
     },
-    "static": {
-        "publicPath": "/templates/",
-        "cacheControl": "public, max-age=3600"
-    }
+   
+
 }
