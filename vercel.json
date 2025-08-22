@@ -1,9 +1,12 @@
 {
     "version": 2,
+    "functions": {
+        "api/app.py": {}
+    },
     "routes": [
         {
             "src": "/api/route(.*)",
-            "dest": "/api/app.py?$1",
+            "dest": "api/app.py?$1",
             "methods": [
                 "GET",
                 "POST"
@@ -11,14 +14,14 @@
         },
         {
             "src": "/api/fuel(.*)",
-            "dest": "/api/app.py?$1",
+            "dest": "api/app.py?$1",
             "methods": [
                 "GET"
             ]
         },
         {
             "src": "/api/export(.*)",
-            "dest": "/api/app.py?$1",
+            "dest": "api/app.py?$1",
             "methods": [
                 "GET"
             ]
