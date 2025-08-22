@@ -18,8 +18,8 @@ CONFIG = {
     "PORT": int(os.environ.get("PORT", 5001)),
     "HOST": "0.0.0.0",
     "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
-    # 改用绝对路径
-    "ROUTE_DATA_PATH": os.path.abspath(os.path.join("static", "route_data.json")),
+    # 关键：从api目录上一级（根目录）找static/route_data.json
+    "ROUTE_DATA_PATH": os.path.abspath(os.path.join("..", "static", "route_data.json")),
     "VALID_USER": {"admin": "123456"}
 }
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # --------------------------- 工具函数区 --------------------------- 
 def read_route_data():
-    """读取航线数据（绝对路径版）"""
+    """读取航线数据（基于根目录的绝对路径）"""
     file_path = CONFIG["ROUTE_DATA_PATH"]
     if not os.path.exists(file_path):
         logger.warning(f"航线数据文件不存在: {file_path}")
@@ -47,11 +47,12 @@ def read_route_data():
 
 # --------------------------- Flask 应用初始化 --------------------------- 
 def create_app():
-    """强制指定静态文件和模板的绝对路径"""
+    """强制指定根目录的静态文件和模板路径（因为app.py在api目录）"""
+    root_path = os.path.abspath("..")  # 定位到项目根目录
     return Flask(
         __name__,
-        static_folder=os.path.abspath("static"),  # 绝对路径
-        template_folder=os.path.abspath("templates")  # 绝对路径
+        static_folder=os.path.join(root_path, "static"),  # 根目录/static
+        template_folder=os.path.join(root_path, "templates")  # 根目录/templates
     )
 
 app = create_app()
@@ -78,12 +79,12 @@ def get_location(lng, lat):
 
 @app.route("/login_page")
 def login_page():
-    """加载登录页面（增加异常捕获）"""
+    """加载登录页面"""
     try:
         return render_template("login.html")
     except Exception as e:
         logger.error(f"登录页加载失败: {str(e)}")
-        return "登录页面加载失败，请检查templates/login.html", 500
+        return "登录页面加载失败，请检查根目录/templates/login.html", 500
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -104,12 +105,12 @@ def login():
 
 @app.route("/route_map")
 def route_map():
-    """加载航线地图页面（增加异常捕获）"""
+    """加载航线地图页面"""
     try:
         return render_template("route_map.html")
     except Exception as e:
         logger.error(f"航线地图页加载失败: {str(e)}")
-        return "航线地图页面加载失败，请检查templates/route_map.html", 500
+        return "航线地图页面加载失败，请检查根目录/templates/route_map.html", 500
 
 @app.route("/fuel_saving", methods=["GET"])
 def fuel_saving():
@@ -137,7 +138,7 @@ def fuel_saving():
 
 @app.route("/export_pdf")
 def export_pdf():
-    """PDF导出逻辑（增加参数校验）"""
+    """PDF导出逻辑"""
     required_params = ["original_speed", "optimized_speed", "distance", "saving"]
     if not all(request.args.get(param, type=float) for param in required_params):
         return "请先完成节油量计算，再导出PDF报告", 400
@@ -210,11 +211,9 @@ def export_pdf():
 
 # --------------------------- 启动入口 --------------------------- 
 if __name__ == "__main__":
-    # 打印路由表（调试用）
     for rule in app.url_map.iter_rules():
         logger.info(f"  {rule.rule} -> {rule.endpoint}")
     
-    # 启动Flask应用
     app.run(
         debug=app.config["DEBUG"], 
         port=app.config["PORT"], 
