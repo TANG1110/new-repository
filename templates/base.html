@@ -1,67 +1,15 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}{% endblock %}</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <!-- 新增：通用样式，避免子页面重复写基础CSS -->
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: #f0f4f8;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            font-size: 16px;
-        }
-
-        .btn-primary {
-            background-color: #1a5f7a;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #144a63;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background-color: #555;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background-color: #333;
-            transform: translateY(-2px);
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}船舶系统{% endblock %}</title>
     {% block head_css %}{% endblock %}
 </head>
 
-<body>
-    <div class="container">
-        {% block content %}{% endblock %}
-    </div>
+<body style="margin: 0; padding: 20px; background-color: #f5f7fa; font-family: Arial, sans-serif;">
+    {% block content %}{% endblock %}
 </body>
 
 </html>

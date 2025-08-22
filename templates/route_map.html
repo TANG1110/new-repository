@@ -4,101 +4,160 @@
 
 {% block head_css %}
 <style>
+    /* 统一登录页/地图页风格（参考登录页样式） */
     .page-title {
         text-align: center;
         color: #0033FF;
         font-size: 26px;
-        margin: 0 0 25px;
+        margin: 20px 0;
         font-weight: bold;
-        letter-spacing: 1px;
     }
 
     .route-info {
-        background-color: #fff;
+        width: 90%;
+        max-width: 1200px;
+        margin: 0 auto 20px;
         padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 25px;
+        background: white;
         border: 1px solid #e5e9f2;
+        border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
-    .route-stats {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 18px;
-        margin: 20px 0;
-    }
-
-    .stat-card {
-        flex: 1;
-        min-width: 160px;
-        background-color: #f8faff;
-        padding: 18px;
+    .fuel-calculator {
+        width: 90%;
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border: 1px solid #e5e9f2;
         border-radius: 8px;
-        box-shadow: 0 2px 6px rgba(0, 47, 255, 0.08);
-        text-align: center;
-        border-top: 3px solid #0033FF;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
-    .coord-preview {
+    .calc-form {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
         margin-top: 15px;
     }
 
-    .coordinate-list {
-        max-height: 180px;
-        overflow-y: auto;
-        font-size: 14px;
-        margin-top: 12px;
-        padding: 12px;
-        background-color: #f8faff;
-        border-radius: 6px;
-        border: 1px solid #e5e9f2;
+    .form-group {
+        flex: 1;
+        min-width: 180px;
     }
 
+    input {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        border: 1px solid #e5e9f2;
+        border-radius: 4px;
+    }
+
+    button {
+        padding: 8px 20px;
+        background: #0033FF;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 23px;
+    }
+
+    /* 地图容器样式 */
     .map-wrapper {
+        width: 90%;
+        max-width: 1200px;
+        margin: 0 auto;
         position: relative;
-        margin-bottom: 30px;
     }
 
     #map {
         width: 100%;
-        height: 600px;
-        border-radius: 10px;
-        box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e5e9f2;
+        height: 500px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
+</style>
+<script src="https://webapi.amap.com/maps?v=2.0&key=1389a7514ce65016496e0ee1349282b7"></script>
+{% endblock %}
 
-    .loading-tip {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background-color: rgba(255, 255, 255, 0.9);
-        padding: 16px 32px;
-        border-radius: 30px;
-        font-size: 16px;
-        color: #0033FF;
-        z-index: 100;
-        display: none;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
+{% block content %}
+<!-- 标题居中 -->
+<h1 class="page-title">船舶航线可视化系统</h1>
 
-    .loading-tip::before {
-        content: '';
-        width: 20px;
-        height: 20px;
-        border: 3px solid #0033FF;
-        border-top-color: transparent;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
+<!-- 节油量计算表单（新增） -->
+<div class="fuel-calculator">
+    <h3>节油量计算</h3>
+    <form action="{{ url_for('fuel_saving') }}" method="get" class="calc-form">
+        <div class="form-group">
+            <label>原航速（节）</label>
+            <input type="number" name="original_speed" step="0.1" required placeholder="例如：15.5">
+        </div>
+        <div class="form-group">
+            <label>优化航速（节）</label>
+            <input type="number" name="optimized_speed" step="0.1" required placeholder="例如：12.3">
+        </div>
+        <div class="form-group">
+            <label>航程（海里）</label>
+            <input type="number" name="distance" step="0.1" required placeholder="例如：500">
+        </div>
+        <div>
+            <button type="submit">计算节油量</button>
+        </div>
+    </form>
+</div>
 
-    .fuel-calculator {
-        background-color: #fff;
-        padding: 25px;
-        border-radius: 10px;
-        border: 1px solid #e5e9f2;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
+<!-- 地图容器 -->
+<div class="map-wrapper">
+    <div id="map"></div>
+</div>
+
+<script>
+    window.onload = function () {
+        const routePoints = JSON.parse('{{ route_points|tojson|safe }}');
+        const map = new AMap.Map('map', {
+            center: routePoints.length > 0 ? routePoints[0] : [121.487899, 31.249162],
+            zoom: 12,
+            resizeEnable: true
+        });
+
+        // 绘制航线
+        if (routePoints.length > 1) {
+            const polyline = new AMap.Polyline({
+                path: routePoints,
+                strokeColor: '#0033FF',
+                strokeWeight: 5,
+                strokeOpacity: 0.8
+            });
+            polyline.setMap(map);
+            map.setFitView([polyline]);
+        }
+
+        // 标记起点（仅保留图标，去掉文字）
+        if (routePoints.length > 0) {
+            new AMap.Marker({
+                position: routePoints[0],
+                title: '起点',
+                icon: new AMap.Icon({
+                    size: new AMap.Size(30, 30),
+                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png'
+                })
+            }).setMap(map);
+        }
+
+        // 标记终点（仅保留图标，去掉文字）
+        if (routePoints.length > 1) {
+            new AMap.Marker({
+                position: routePoints[routePoints.length - 1],
+                title: '终点',
+                icon: new AMap.Icon({
+                    size: new AMap.Size(30, 30),
+                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
+                })
+            }).setMap(map);
+        }
+    };
+</script>
+{% endblock %}
