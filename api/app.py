@@ -26,7 +26,9 @@ CONFIG = {
     "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
     "ROUTE_DATA_PATH": os.path.join(API_DIR, "../static/route_data.json"),
     "PRESET_ROUTE_PATH": os.path.join(API_DIR, "../static/shanghai_ningbo_route.json"),
-    "VALID_USER": {"admin": "123456"}
+    "VALID_USER": {"admin": "123456"},
+    # 1. 新增：字体文件路径配置（指向 static/fonts 文件夹）
+    "FONT_PATH": os.path.join(API_DIR, "../static/fonts/SimHei.ttf")
 }
 
 # 日志配置
@@ -90,14 +92,20 @@ def generate_route_report(route_points, fuel_data):
         bottomMargin=0.8*cm
     )
 
-    # 2. 强制注册中文字体
+    # 2. 强制注册中文字体（2. 修改：用配置的绝对路径加载字体）
     try:
-        pdfmetrics.registerFont(TTFont('SimHei', 'SimHei.ttf'))
-        addMapping('SimHei', 0, 0, 'SimHei')
-        addMapping('SimHei', 0, 1, 'SimHei')
-        font_name = 'SimHei'
-    except:
-        logger.warning("⚠️ 未找到SimHei，使用默认字体")
+        # 先检查字体文件是否存在，打印路径方便排查
+        if os.path.exists(CONFIG["FONT_PATH"]):
+            logger.info(f"✅ 找到字体文件: {CONFIG['FONT_PATH']}")
+            pdfmetrics.registerFont(TTFont('STXIHEI', CONFIG["FONT_PATH"]))
+            addMapping('STXIHEI', 0, 0, 'STXIHEI')
+            addMapping('STXIHEI', 0, 1, 'STXIHEI')
+            font_name = 'STXIHEI'
+        else:
+            logger.error(f"❌ 未找到字体文件: {CONFIG['FONT_PATH']}")
+            raise FileNotFoundError("字体文件缺失")
+    except Exception as e:
+        logger.warning(f"⚠️ 字体加载失败: {str(e)}，使用默认字体")
         font_name = 'Helvetica'
 
     # 3. 紧凑样式配置（控制整体高度）
@@ -198,11 +206,16 @@ def generate_route_report(route_points, fuel_data):
     buffer.seek(0)
     return buffer
 
-# --------------------------- Flask 应用初始化 --------------------------- 
+# --------------------------- Flask 应用初始化（3. 修改：创建 fonts 文件夹） --------------------------- 
 def create_app():
     root_path = os.path.dirname(API_DIR)
     static_path = os.path.join(root_path, "static")
     template_path = os.path.join(root_path, "templates")
+    # 新增：创建 fonts 子文件夹（确保部署后文件夹存在）
+    fonts_path = os.path.join(static_path, "fonts")
+    if not os.path.exists(fonts_path):
+        os.makedirs(fonts_path)
+        logger.info(f"✅ 创建 fonts 文件夹: {fonts_path}")
 
     if not os.path.exists(static_path):
         os.makedirs(static_path)
@@ -234,7 +247,7 @@ def create_app():
     app.config.from_mapping(CONFIG)
     return app
 
-# --------------------------- 路由定义 --------------------------- 
+# --------------------------- 路由定义（无修改） --------------------------- 
 app = create_app()
 
 @app.route("/")
@@ -357,4 +370,3 @@ def export_pdf():
 
 if __name__ == "__main__":
     app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
-    
