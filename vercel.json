@@ -3,52 +3,42 @@
     "functions": {
         "api/app.py": {}
     },
-    "routes": [
+    "rewrites": [
         {
-            "src": "/",
-            "dest": "api/app.py"
+            "source": "/",
+            "destination": "/api/app.py"
         },
         {
-            "src": "/get_location/(.*)/(.*)",
-            "dest": "api/app.py?$1&$2"
+            "source": "/get_location/(.*)/(.*)",
+            "destination": "/api/app.py"
         },
         {
-            "src": "/login_page",
-            "dest": "api/app.py"
+            "source": "/login_page",
+            "destination": "/api/app.py"
         },
         {
-            "src": "/login",
-            "dest": "api/app.py",
-            "methods": [
-                "GET",
-                "POST"
-            ]
+            "source": "/login",
+            "destination": "/api/app.py"
         },
         {
-            "src": "/login_success",
-            "dest": "api/app.py"
+            "source": "/login_success",
+            "destination": "/api/app.py"
         },
         {
-            "src": "/route_map",
-            "dest": "api/app.py"
+            "source": "/route_map",
+            "destination": "/api/app.py"
         },
         {
-            "src": "/fuel_saving",
-            "dest": "api/app.py",
-            "methods": [
-                "GET"
-            ]
+            "source": "/fuel_saving",
+            "destination": "/api/app.py"
         },
         {
-            "src": "/export_pdf",
-            "dest": "api/app.py",
-            "methods": [
-                "GET"
-            ]
+            "source": "/export_pdf",
+            "destination": "/api/app.py"
         },
         {
-            "src": "/(.*)",
-            "dest": "api/app.py?$1"
+            "source": "/(.*)",
+            "destination": "/api/app.py"
         }
     ]
 }
