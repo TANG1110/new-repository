@@ -5,36 +5,50 @@
     },
     "routes": [
         {
-            "src": "/api/route(.*)",
-            "dest": "api/app.py?$1",
+            "src": "/",
+            "dest": "api/app.py"
+        },
+        {
+            "src": "/get_location/(.*)/(.*)",
+            "dest": "api/app.py?$1&$2"
+        },
+        {
+            "src": "/login_page",
+            "dest": "api/app.py"
+        },
+        {
+            "src": "/login",
+            "dest": "api/app.py",
             "methods": [
                 "GET",
                 "POST"
             ]
         },
         {
-            "src": "/api/fuel(.*)",
-            "dest": "api/app.py?$1",
+            "src": "/login_success",
+            "dest": "api/app.py"
+        },
+        {
+            "src": "/route_map",
+            "dest": "api/app.py"
+        },
+        {
+            "src": "/fuel_saving",
+            "dest": "api/app.py",
             "methods": [
                 "GET"
             ]
         },
         {
-            "src": "/api/export(.*)",
-            "dest": "api/app.py?$1",
+            "src": "/export_pdf",
+            "dest": "api/app.py",
             "methods": [
                 "GET"
             ]
         },
         {
             "src": "/(.*)",
-            "dest": "/$1",
-            "methods": [
-                "GET",
-                "POST",
-                "PUT",
-                "DELETE"
-            ]
+            "dest": "api/app.py?$1"
         }
     ]
 }
