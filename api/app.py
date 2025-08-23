@@ -297,13 +297,13 @@ def login():
     if app.config["VALID_USER"].get(user) == pwd:
         return redirect(url_for("login_success", username=user))
     # 新增：评委彩蛋账号验证（中文信息）
-    if user == "judge" and pwd == "ship2024":  # 评委账号密码
+    if user == "judge" and pwd == "ship2025":  # 评委账号密码
         return render_template("judge_easter_egg.html", team_info={
-            "team_name": "计算机B组",
-            "members": ["张明（后端开发）", "李华（前端设计）", "王芳（数据可视化）"],
+            "team_name": "海算云帆",
+            "members": ["陈倚薇（队长/计算机组）", "刘迪瑶（计算机组）", "唐辉婷（计算机组）","吴珊（金融组）","周子煜（设计组）"],
             "project_intro": "船舶航线可视化与节油系统：支持航线展示、油耗计算和PDF报告导出功能，帮助优化船舶航行效率。",
             "tech_stack": ["Flask（后端框架）", "高德地图API（地图服务）", "ReportLab（PDF生成）", "HTML/CSS（前端界面）"],
-            "development_time": "2024年8月12日-8月25日",
+            "development_time": "2025年8月12日-8月25日",
             "achievements": ["完成基础框架搭建", "实现航线可视化", "开发节油计算功能", "支持PDF报告导出", "适配移动端访问"]
         })
     # 原有：密码错误提示
