@@ -29,6 +29,27 @@ CONFIG = {
     "VALID_USER": {"admin": "123456"}
 }
 
+# 中文到英文地点名称映射表
+LOCATION_TRANSLATIONS = {
+    "上海": "Shanghai",
+    "北京": "Beijing",
+    "广州": "Guangzhou",
+    "深圳": "Shenzhen",
+    "宁波": "Ningbo",
+    "天津": "Tianjin",
+    "青岛": "Qingdao",
+    "大连": "Dalian",
+    "厦门": "Xiamen",
+    "香港": "Hong Kong",
+    "澳门": "Macau",
+    "重庆": "Chongqing",
+    "南京": "Nanjing",
+    "杭州": "Hangzhou",
+    "苏州": "Suzhou",
+    "武汉": "Wuhan"
+    # 可以根据需要添加更多城市
+}
+
 # 日志配置
 logging.basicConfig(
     level=logging.DEBUG,
@@ -76,7 +97,25 @@ def calculate_route_distance(points: list) -> float:
         total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
     return round(total_km / 1.852, 2)
 
-# --------------------------- PDF生成核心函数（关键修改：PDF内文字改为英文） ---------------------------
+def translate_location(chinese_name):
+    """将中文地点转换为英文"""
+    if not chinese_name:
+        return "Not Specified"
+    
+    # 先尝试直接从映射表中查找
+    translated = LOCATION_TRANSLATIONS.get(chinese_name.strip(), None)
+    if translated:
+        return translated
+    
+    # 如果找不到精确匹配，尝试部分匹配或返回原名称
+    for cn, en in LOCATION_TRANSLATIONS.items():
+        if cn in chinese_name:
+            return en
+    
+    # 如果完全找不到匹配，返回原名称（处理拼音或英文输入的情况）
+    return chinese_name
+
+# --------------------------- PDF生成核心函数（PDF内文字改为英文） ---------------------------
 def generate_route_report(route_points, fuel_data):
     buffer = BytesIO()
     
@@ -90,85 +129,85 @@ def generate_route_report(route_points, fuel_data):
         bottomMargin=0.8*cm
     )
 
-    # 2. 【修改1】PDF使用英文默认字体（无需中文字体，避免乱码）
-    font_name = 'Helvetica'  # 英文标准字体，无需注册中文字体
+    # 2. PDF使用英文默认字体
+    font_name = 'Helvetica'  # 英文标准字体
 
-    # 3. 紧凑样式配置（控制整体高度，保留原样式逻辑）
+    # 3. 紧凑样式配置
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
-        name='Title_EN',  # 样式名改为英文标识
+        name='Title_EN',
         parent=styles['Title'],
         fontName=font_name,
         fontSize=18,
         alignment=1,
-        spaceAfter=8  # 标题后间距缩小
+        spaceAfter=8
     ))
     styles.add(ParagraphStyle(
-        name='Normal_EN',  # 样式名改为英文标识
+        name='Normal_EN',
         parent=styles['Normal'],
         fontName=font_name,
         fontSize=10,
-        leading=12  # 行间距缩小
+        leading=12
     ))
     styles.add(ParagraphStyle(
-        name='Heading2_EN',  # 样式名改为英文标识
+        name='Heading2_EN',
         parent=styles['Heading2'],
         fontName=font_name,
         fontSize=14,
         spaceBefore=6,
-        spaceAfter=6  # 小标题间距缩小
+        spaceAfter=6
     ))
 
     elements = []
-    # 【修改2】标题和时间改为英文
-    elements.append(Paragraph("Ship Route Visualization System Report", styles['Title_EN']))  # 英文标题
-    elements.append(Paragraph(f"Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal_EN']))  # 英文时间
-    elements.append(Spacer(1, 6))  # 缩小空白
+    # 标题和时间（英文）
+    elements.append(Paragraph("Ship Route Visualization System Report", styles['Title_EN']))
+    elements.append(Paragraph(f"Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal_EN']))
+    elements.append(Spacer(1, 6))
 
-    # 4. 航线坐标表格（【修改3】表头改为英文）
-    elements.append(Paragraph("1. Route Coordinate Information", styles['Heading2_EN']))  # 英文小标题
+    # 4. 航线坐标表格
+    elements.append(Paragraph("1. Route Coordinate Information", styles['Heading2_EN']))
     if route_points:
-        # 计算表格可用高度（A4高度29.7cm - 边距 - 其他内容高度）
-        table_data = [["No.", "Longitude", "Latitude"]]  # 【关键】表头改为英文（序号、经度、纬度）
+        table_data = [["No.", "Longitude", "Latitude"]]
         for idx, (lng, lat) in enumerate(route_points, 1):
-            table_data.append([str(idx), f"{lng:.6f}", f"{lat:.6f}"])  # 数据格式不变
+            table_data.append([str(idx), f"{lng:.6f}", f"{lat:.6f}"])
         
-        # 计算表格宽度（A4宽度21cm - 两边距1.6cm）
-        table_width = 21*cm - 1.6*cm  # 约19.4cm
-        col_widths = [table_width*0.15, table_width*0.425, table_width*0.425]  # 序号列窄，经纬度列宽
+        table_width = 21*cm - 1.6*cm
+        col_widths = [table_width*0.15, table_width*0.425, table_width*0.425]
         
-        # 计算行高（确保所有内容在一页内）
         max_rows_per_page = len(table_data)
-        row_height = (24*cm) / max_rows_per_page  # 可用高度分配给所有行
+        row_height = (24*cm) / max_rows_per_page
         
-        # 创建表格（样式逻辑不变）
         route_table = Table(table_data, colWidths=col_widths, rowHeights=row_height)
         route_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), font_name),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),  # 表格字体统一缩小
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('LEADING', (0, 0), (-1, -1), 8)  # 紧凑行间距
+            ('LEADING', (0, 0), (-1, -1), 8)
         ]))
         elements.append(route_table)
     else:
-        elements.append(Paragraph("⚠️ No route coordinate data obtained", styles['Normal_EN']))  # 【修改4】提示文字改为英文
+        elements.append(Paragraph("⚠️ No route coordinate data obtained", styles['Normal_EN']))
     elements.append(Spacer(1, 6))
 
-    # 5. 节油量表格（【修改5】表头和内容改为英文）
-    elements.append(Paragraph("2. Fuel Saving Calculation Results", styles['Heading2_EN']))  # 英文小标题
+    # 5. 节油量表格（使用翻译后的地点名称）
+    elements.append(Paragraph("2. Fuel Saving Calculation Results", styles['Heading2_EN']))
     if fuel_data:
+        # 翻译起点和终点
+        translated_start = translate_location(fuel_data.get('start'))
+        translated_end = translate_location(fuel_data.get('end'))
+        
         fuel_table_data = [
-            ["Parameter", "Value"],  # 【关键】表头改为英文（参数、数值）
-            ["Start Point", fuel_data.get('start', 'Not Filled')],  # 英文提示
-            ["End Point", fuel_data.get('end', 'Not Filled')],  # 英文提示
-            ["Original Speed", f"{fuel_data.get('original')} knots"],  # 单位"节"改为英文"knots"
-            ["Optimized Speed", f"{fuel_data.get('optimized')} knots"],  # 单位"节"改为英文"knots"
-            ["Route Distance", f"{fuel_data.get('distance')} nautical miles"],  # 单位"海里"改为英文"nautical miles"
-            ["Fuel Saved", f"{fuel_data.get('saving')} tons"]  # 单位"吨"保留英文"tons"（国际通用）
+            ["Parameter", "Value"],
+            ["Start Point", translated_start],  # 使用翻译后的值
+            ["End Point", translated_end],      # 使用翻译后的值
+            ["Original Speed", f"{fuel_data.get('original')} knots"],
+            ["Optimized Speed", f"{fuel_data.get('optimized')} knots"],
+            ["Route Distance", f"{fuel_data.get('distance')} nautical miles"],
+            ["Fuel Saved", f"{fuel_data.get('saving')} tons"]
         ]
         
         fuel_table = Table(fuel_table_data, colWidths=[table_width*0.3, table_width*0.7])
@@ -184,9 +223,9 @@ def generate_route_report(route_points, fuel_data):
         ]))
         elements.append(fuel_table)
     else:
-        elements.append(Paragraph("⚠️ No fuel saving calculation data obtained", styles['Normal_EN']))  # 【修改6】提示文字改为英文
+        elements.append(Paragraph("⚠️ No fuel saving calculation data obtained", styles['Normal_EN']))
 
-    # 构建PDF（确保单页）
+    # 构建PDF
     doc.build(elements)
     buffer.seek(0)
     return buffer
@@ -313,7 +352,7 @@ def fuel_saving():
 @app.route("/export_pdf")
 def export_pdf():
     try:
-        # 获取上海-宁波航线坐标
+        # 获取航线坐标
         start = request.args.get("start_point", "").strip()
         end = request.args.get("end_point", "").strip()
         route_points = get_preset_route(start, end)
@@ -321,7 +360,7 @@ def export_pdf():
             with open(CONFIG["PRESET_ROUTE_PATH"], "r", encoding="utf-8") as f:
                 route_points = json.load(f).get("points", [])
 
-        # 节油量数据（保留原逻辑，PDF内会自动转为英文显示）
+        # 节油量数据
         fuel_data = {
             "start": start or "上海",
             "end": end or "宁波",
@@ -331,10 +370,10 @@ def export_pdf():
             "saving": request.args.get("saving", "未计算")
         }
 
-        # 生成单页PDF（调用修改后的英文PDF生成函数）
+        # 生成PDF
         pdf_buffer = generate_route_report(route_points, fuel_data)
 
-        # 返回下载（文件名保留中文标识，不影响下载）
+        # 返回下载
         response = make_response(send_file(
             pdf_buffer,
             mimetype='application/pdf',
