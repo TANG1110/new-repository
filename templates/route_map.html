@@ -4,7 +4,6 @@
 
 {% block head_css %}
 <style>
-    /* 统一登录页/地图页风格（参考登录页样式） */
     .page-title {
         text-align: center;
         color: #0033FF;
@@ -70,7 +69,6 @@
         background: #0021aa;
     }
 
-    /* 地图容器样式 */
     .map-wrapper {
         width: 90%;
         max-width: 1200px;
@@ -85,7 +83,6 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    /* 信息提示样式 */
     .info-text {
         color: #666;
         font-size: 14px;
@@ -97,50 +94,36 @@
 {% endblock %}
 
 {% block content %}
-<!-- 标题居中 -->
 <h1 class="page-title">船舶航线可视化系统</h1>
 
-<!-- 参数输入区域（整合起点终点和航速参数） -->
+<!-- 参数输入区域 -->
 <div class="param-container">
     <h3>航线参数设置</h3>
     <form action="{{ url_for('route_map') }}" method="get" class="calc-form">
-        <!-- 新增：起点输入框 -->
         <div class="form-group">
             <label>起点</label>
             <input type="text" name="start_point" value="{{ start_point if start_point else '' }}" placeholder="例如：上海">
-            <!-- 删除“支持城市名称（如上海、宁波）”提示文本 -->
         </div>
-
-        <!-- 新增：终点输入框 -->
         <div class="form-group">
             <label>终点</label>
             <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="例如：宁波">
-            <!-- 删除“支持城市名称（如上海、宁波）”提示文本 -->
         </div>
-
-        <!-- 原航速输入框 -->
         <div class="form-group">
             <label>原航速（节）</label>
             <input type="number" name="original_speed" step="0.1" value="{{ original_speed if original_speed else '' }}"
                 placeholder="例如：15.5">
         </div>
-
-        <!-- 优化航速输入框 -->
         <div class="form-group">
             <label>优化航速（节）</label>
             <input type="number" name="optimized_speed" step="0.1"
                 value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3">
         </div>
-
-        <!-- 航程输入框（自动计算/手动修改） -->
         <div class="form-group">
             <label>航程（海里）</label>
             <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
                 placeholder="自动计算">
             <div class="info-text">留空则自动计算航线距离</div>
         </div>
-
-        <!-- 提交按钮 -->
         <div>
             <button type="submit">加载航线</button>
         </div>
@@ -151,7 +134,6 @@
 <div class="param-container">
     <h3>节油量计算</h3>
     <form action="{{ url_for('fuel_saving') }}" method="get" class="calc-form">
-        <!-- 隐藏字段传递起点终点 -->
         <input type="hidden" name="start_point" value="{{ start_point if start_point else '' }}">
         <input type="hidden" name="end_point" value="{{ end_point if end_point else '' }}">
 
@@ -184,54 +166,59 @@
 <script>
     window.onload = function () {
         try {
-            // 修复：去掉|tojson，避免双重转义
+            // 解析航线数据（修复：仅用|safe避免双重转义）
             const routePoints = JSON.parse('{{ route_points|safe }}');
+            const startPoint = '{{ start_point|safe }}';
+            const endPoint = '{{ end_point|safe }}';
+            const mapWrapper = document.querySelector('.map-wrapper');
 
-            // 修复：动态调整zoom（适配低纬度航线）
-            let initZoom = 12;
-            if (routePoints.length > 1) {
-                const avgLat = routePoints.reduce((sum, [lng, lat]) => sum + lat, 0) / routePoints.length;
-                initZoom = avgLat < 25 ? 9 : 12;
-            }
+            // 【关键修复】未输入起点终点时，显示默认航线（上海-宁波）
+            // 仅当航线数据为空时才显示错误（有默认航线时不显示）
+            if (routePoints.length === 0) {
+                let errorMsg = "航线加载失败：";
+                if (startPoint && endPoint) {
+                    errorMsg += `未找到「${startPoint}→${endPoint}」的航线数据。<br>`;
+                    errorMsg += "支持的航线：上海-宁波、广州-深圳、青岛-大连、天津-青岛、厦门-香港（及反向）";
+                } else {
+                    errorMsg += "请输入有效的起点和终点（如：上海、宁波）";
+                }
+                mapWrapper.insertAdjacentHTML('afterbegin',
+                    `<div style="text-align:center; padding:10px; color:#ff4444;">${errorMsg}</div>`
+                );
+            } else {
+                // 有航线数据（包括默认航线），正常初始化地图
+                console.log(`加载航线：${startPoint || '默认'}→${endPoint || '默认'}，坐标点数量：${routePoints.length}`);
 
-            const map = new AMap.Map('map', {
-                center: routePoints.length > 0 ? routePoints[0] : [121.487899, 31.249162],
-                zoom: initZoom,
-                resizeEnable: true
-            });
+                // 动态调整缩放级别（适配不同纬度航线）
+                let initZoom = 12;
+                if (routePoints.length > 1) {
+                    const avgLat = routePoints.reduce((sum, [lng, lat]) => sum + lat, 0) / routePoints.length;
+                    initZoom = avgLat < 25 ? 9 : 12;  // 低纬度航线（如广州-深圳）用更小zoom
+                }
 
-            if (routePoints.length > 1) {
+                // 初始化地图
+                const map = new AMap.Map('map', {
+                    center: routePoints[0],  // 以第一个点为中心
+                    zoom: initZoom,
+                    resizeEnable: true
+                });
+
+                // 绘制航线
                 const polyline = new AMap.Polyline({
                     path: routePoints,
                     strokeColor: '#0033FF',
                     strokeWeight: 5,
                     strokeOpacity: 0.8,
-                    strokeStyle: 'solid',
                     strokeDasharray: [10, 5]
                 });
                 polyline.setMap(map);
-                // 修复：视野适配容错
+                // 自动适配视野
                 map.setFitView([polyline], false, [30, 30]).catch(err => {
                     console.error("视野适配失败：", err);
                     map.setZoom(initZoom);
                 });
-            } else if (routePoints.length === 1) {
-                new AMap.Marker({
-                    position: routePoints[0],
-                    title: '航线点',
-                    icon: new AMap.Icon({
-                        size: new AMap.Size(30, 30),
-                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
-                    })
-                }).setMap(map);
-            } else {
-                document.querySelector('.map-wrapper').insertAdjacentHTML('afterbegin',
-                    '<div style="text-align:center; padding:10px; color:#666;">请输入起点和终点并点击"加载航线"</div>'
-                );
-            }
 
-            // 标记起点（原有逻辑不变）
-            if (routePoints.length > 0) {
+                // 标记起点
                 new AMap.Marker({
                     position: routePoints[0],
                     title: '起点',
@@ -241,25 +228,26 @@
                     }),
                     anchor: 'bottom-center'
                 }).setMap(map);
+
+                // 标记终点
+                if (routePoints.length > 1) {
+                    new AMap.Marker({
+                        position: routePoints[routePoints.length - 1],
+                        title: '终点',
+                        icon: new AMap.Icon({
+                            size: new AMap.Size(30, 30),
+                            image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
+                        }),
+                        anchor: 'bottom-center'
+                    }).setMap(map);
+                }
             }
 
-            // 标记终点（原有逻辑不变）
-            if (routePoints.length > 1) {
-                new AMap.Marker({
-                    position: routePoints[routePoints.length - 1],
-                    title: '终点',
-                    icon: new AMap.Icon({
-                        size: new AMap.Size(30, 30),
-                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
-                    }),
-                    anchor: 'bottom-center'
-                }).setMap(map);
-            }
         } catch (e) {
-            console.error("地图加载失败：", e);
+            console.error("地图加载失败：", e, "原始数据：", '{{ route_points|safe }}');
             document.querySelector('.map-wrapper').insertAdjacentHTML(
                 'afterbegin',
-                '<div style="text-align:center; padding:10px; color:#ff4444;">航线加载失败，请检查输入或网络！</div>'
+                '<div style="text-align:center; padding:10px; color:#ff4444;">数据格式错误，请联系管理员</div>'
             );
         }
     };

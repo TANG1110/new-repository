@@ -5,6 +5,7 @@ import logging
 import math
 from io import BytesIO
 from datetime import datetime
+from pathlib import Path  # 新增：使用pathlib处理路径更可靠
 from flask import Flask, request, render_template, redirect, url_for, make_response, send_file
 
 # PDF生成相关库
@@ -15,21 +16,22 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 
 # --------------------------- 配置区 ---------------------------
-API_DIR = os.path.abspath(os.path.dirname(__file__))
-PROJECT_ROOT = os.path.abspath(os.path.join(API_DIR, ".."))
+# 【修复】使用Path确保跨平台路径兼容性，避免Vercel路径错误
+API_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = API_DIR.parent  # 假设app.py在项目根目录（与static同级）
 
 # 预设航线文件路径（严格遵循“城市拼音-城市拼音.json”）
 PRESET_ROUTE_FILES = {
-    "上海-宁波": os.path.join(PROJECT_ROOT, "static/shanghai_ningbo.json"),
-    "宁波-上海": os.path.join(PROJECT_ROOT, "static/ningbo_shanghai.json"),
-    "广州-深圳": os.path.join(PROJECT_ROOT, "static/guangzhou_shenzhen.json"),
-    "深圳-广州": os.path.join(PROJECT_ROOT, "static/shenzhen_guangzhou.json"),
-    "青岛-大连": os.path.join(PROJECT_ROOT, "static/qingdao_dalian.json"),
-    "大连-青岛": os.path.join(PROJECT_ROOT, "static/dalian_qingdao.json"),
-    "天津-青岛": os.path.join(PROJECT_ROOT, "static/tianjin_qingdao.json"),
-    "青岛-天津": os.path.join(PROJECT_ROOT, "static/qingdao_tianjin.json"),
-    "厦门-香港": os.path.join(PROJECT_ROOT, "static/xiamen_hongkong.json"),
-    "香港-厦门": os.path.join(PROJECT_ROOT, "static/hongkong_xiamen.json")
+    "上海-宁波": PROJECT_ROOT / "static" / "shanghai_ningbo.json",
+    "宁波-上海": PROJECT_ROOT / "static" / "ningbo_shanghai.json",
+    "广州-深圳": PROJECT_ROOT / "static" / "guangzhou_shenzhen.json",
+    "深圳-广州": PROJECT_ROOT / "static" / "shenzhen_guangzhou.json",
+    "青岛-大连": PROJECT_ROOT / "static" / "qingdao_dalian.json",
+    "大连-青岛": PROJECT_ROOT / "static" / "dalian_qingdao.json",
+    "天津-青岛": PROJECT_ROOT / "static" / "tianjin_qingdao.json",
+    "青岛-天津": PROJECT_ROOT / "static" / "qingdao_tianjin.json",
+    "厦门-香港": PROJECT_ROOT / "static" / "xiamen_hongkong.json",
+    "香港-厦门": PROJECT_ROOT / "static" / "hongkong_xiamen.json"
 }
 
 CONFIG = {
@@ -37,8 +39,8 @@ CONFIG = {
     "DEBUG": False,  # Vercel部署必须关闭DEBUG
     "PORT": int(os.environ.get("PORT", 5000)),
     "HOST": "0.0.0.0",
-    "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",  # 已验证密钥格式正确
-    "ROUTE_DATA_PATH": os.path.join(PROJECT_ROOT, "static/route_data.json"),
+    "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
+    "ROUTE_DATA_PATH": PROJECT_ROOT / "static" / "route_data.json",  # 修正路径
     "VALID_USER": {"admin": "123456"}
 }
 
@@ -101,8 +103,8 @@ def read_route_data():
 def get_preset_route(start_point: str, end_point: str) -> list:
     """【优化】匹配预设航线（支持中文/拼音/简称/大小写模糊匹配）"""
     if not start_point or not end_point:
-        logger.warning("起点或终点为空，返回默认航线")
-        return read_route_data()
+        logger.warning("起点或终点为空，返回默认航线（上海-宁波）")
+        return read_route_data()  # 未输入时返回默认航线，确保地图有数据
     
     # 统一转为小写，增强匹配容错
     start = start_point.strip().lower()
@@ -110,69 +112,66 @@ def get_preset_route(start_point: str, end_point: str) -> list:
     
     # 扩展地点别名库，支持更多输入形式（如拼音缩写、中英文混合）
     location_aliases = {
-        "上海": ["上海", "shanghai", "沪", "sh"],
-        "宁波": ["宁波", "ningbo", "甬", "nb"],
-        "广州": ["广州", "guangzhou", "穗", "gz", "guang zhou"],
-        "深圳": ["深圳", "shenzhen", "sz", "shen zhen"],
-        "青岛": ["青岛", "qingdao", "qd", "qing dao"],
-        "大连": ["大连", "dalian", "dl", "da lian"],
-        "天津": ["天津", "tianjin", "津", "tj", "tian jin"],
-        "厦门": ["厦门", "xiamen", "鹭", "xm", "xia men"],
-        "香港": ["香港", "hong kong", "港", "hk", "xiang gang"]
+        "上海": ["上海", "shanghai", "沪", "sh", "shang hai"],
+        "宁波": ["宁波", "ningbo", "甬", "nb", "ning bo"],
+        "广州": ["广州", "guangzhou", "穗", "gz", "guang zhou", "广"],
+        "深圳": ["深圳", "shenzhen", "sz", "shen zhen", "深"],
+        "青岛": ["青岛", "qingdao", "qd", "qing dao", "青"],
+        "大连": ["大连", "dalian", "dl", "da lian", "连"],
+        "天津": ["天津", "tianjin", "津", "tj", "tian jin", "天"],
+        "厦门": ["厦门", "xiamen", "鹭", "xm", "xia men", "厦"],
+        "香港": ["香港", "hong kong", "港", "hk", "xiang gang", "香"]
     }
     
-    # 【优化】模糊匹配：只要输入包含别名的一部分，就视为匹配（如输入“广”也能匹配广州）
+    # 【优化】模糊匹配：支持首字匹配、部分匹配
     matched_start = None
     matched_end = None
     for std_name, aliases in location_aliases.items():
         if not matched_start:
             for alias in aliases:
-                if alias in start or start in alias:
+                if alias in start or start in alias or (len(start) >= 1 and start[0] in alias):
                     matched_start = std_name
                     break
         if not matched_end:
             for alias in aliases:
-                if alias in end or end in alias:
+                if alias in end or end in alias or (len(end) >= 1 and end[0] in alias):
                     matched_end = std_name
                     break
     
-    # 打印匹配日志，便于调试（开发阶段保留）
+    # 打印匹配日志，便于调试
     logger.info(f"输入起点：{start_point} → 匹配结果：{matched_start}")
     logger.info(f"输入终点：{end_point} → 匹配结果：{matched_end}")
     
-    # 未匹配到有效地点时，返回默认航线
+    # 未匹配到有效地点时，返回空列表（前端会提示）
     if not matched_start or not matched_end:
-        logger.warning(f"未匹配到有效地点：{start_point}→{end_point}，使用默认上海-宁波航线")
-        return read_route_data()
+        logger.warning(f"未匹配到有效地点：{start_point}→{end_point}，支持城市：{list(location_aliases.keys())}")
+        return []
     
     # 构建航线键（如“广州-深圳”）
     route_key = f"{matched_start}-{matched_end}"
     if route_key not in PRESET_ROUTE_FILES:
         logger.warning(f"无预设航线：{route_key}，可用航线：{list(PRESET_ROUTE_FILES.keys())}")
-        return read_route_data()
+        return []
     
     # 检查航线文件是否存在
     file_path = PRESET_ROUTE_FILES[route_key]
     if not os.path.exists(file_path):
-        logger.error(f"航线文件缺失：{file_path}，使用默认上海-宁波航线")
-        return read_route_data()
+        logger.error(f"航线文件缺失：{file_path}")
+        return []
     
     # 读取并验证航线文件
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            if "points" not in data or not isinstance(data["points"], list) or len(data["points"]) < 2:
-                logger.error(f"航线文件{route_key}格式错误：'points'字段无效或坐标点不足")
-                return read_route_data()
-            route_points = data["points"]
+            route_points = data.get("points", [])
+            if len(route_points) < 2:
+                logger.error(f"航线文件{route_key}格式错误：坐标点不足（{len(route_points)}个）")
+                return []
             logger.info(f"✅ 成功加载航线：{route_key}（{len(route_points)}个坐标点）")
             return route_points
-    except json.JSONDecodeError:
-        logger.error(f"航线文件{route_key}JSON解析失败：格式错误")
-        return read_route_data()
     except Exception as e:
-        logger.error(f"读取航线{route_key}失败：{str(e)}，使用默认上海-宁波航线")
-        return read_route_data()
+        logger.error(f"读取航线{route_key}失败：{str(e)}")
+        return []
 
 def calculate_route_distance(points: list) -> float:
     """计算航线距离（单位：海里）"""
@@ -184,7 +183,6 @@ def calculate_route_distance(points: list) -> float:
         try:
             lng1, lat1 = points[i]
             lng2, lat2 = points[i+1]
-            # 验证经纬度格式（防止无效坐标）
             if not (-180 <= lng1 <= 180 and -90 <= lat1 <= 90 and -180 <= lng2 <= 180 and -90 <= lat2 <= 90):
                 logger.warning(f"无效坐标点：({lng1},{lat1}) → ({lng2},{lat2})，跳过计算")
                 continue
@@ -284,25 +282,24 @@ def generate_route_report(route_points, fuel_data):
 
 # --------------------------- Flask应用初始化 ---------------------------
 def create_app():
-    static_path = os.path.join(PROJECT_ROOT, "static")
-    template_path = os.path.join(PROJECT_ROOT, "templates")
+    static_path = PROJECT_ROOT / "static"
+    template_path = PROJECT_ROOT / "templates"
 
-    # 自动创建文件夹（首次运行时）
+    # 仅创建文件夹，不自动生成航线文件（避免Vercel权限错误）
     if not os.path.exists(static_path):
         os.makedirs(static_path)
         logger.info("首次运行，自动创建static文件夹（航线文件需手动上传）")
-
+    
     if not os.path.exists(template_path):
         os.makedirs(template_path)
-        # 生成基础模板（确保继承正常）
-        with open(os.path.join(template_path, "base.html"), "w", encoding="utf-8") as f:
+        with open(template_path / "base.html", "w", encoding="utf-8") as f:
             f.write("""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{% block title %}船舶航线系统{% endblock %}</title>{% block head_css %}{% endblock %}</head><body style="margin:0; padding:20px; background:#f5f7fa; font-family:Arial,sans-serif;">{% block content %}{% endblock %}</body></html>""")
 
     # 初始化Flask应用
     app = Flask(
         __name__,
-        static_folder=static_path,
-        template_folder=template_path
+        static_folder=str(static_path),  # 转换为字符串兼容Flask
+        template_folder=str(template_path)
     )
     app.config.from_mapping(CONFIG)
     return app
@@ -356,24 +353,24 @@ def route_map():
     optimized = request.args.get("optimized_speed", "").strip()
     user_dist = request.args.get("distance", "").strip()
 
-    # 【优化】只调用一次get_preset_route，避免数据不一致
-    route_points = get_preset_route(start, end) if (start and end) else read_route_data()
-    # 计算航程（确保坐标点有效）
+    # 【关键】未输入起点终点时，返回默认航线（确保地图有数据）
+    route_points = get_preset_route(start, end) if (start or end) else read_route_data()
+    # 计算航程
     default_dist = calculate_route_distance(route_points) if len(route_points) >= 2 else 0.0
     final_dist = user_dist if (user_dist and float(user_dist) > 0) else str(default_dist)
 
-    # 【优化】精准判断是否使用默认航线（对比坐标点数量和前3个坐标）
+    # 判断是否使用默认航线
     default_route_points = read_route_data()
     is_default_route = (
         len(route_points) == len(default_route_points) 
-        and route_points[:3] == default_route_points[:3]  # 对比前3个坐标，避免误判
+        and route_points[:3] == default_route_points[:3]
     )
     default_route_tip = "（使用默认上海-宁波航线）" if is_default_route else ""
 
     logger.info(f"航线加载完成：{start}→{end}，是否默认航线：{is_default_route}，航程：{final_dist}海里")
     return render_template(
         "route_map.html",
-        route_points=json.dumps(route_points),  # 传递JSON格式坐标，前端可直接解析
+        route_points=json.dumps(route_points),  # 传递JSON格式坐标
         start_point=start,
         end_point=end,
         original_speed=original,
@@ -387,7 +384,6 @@ def fuel_saving():
     start = request.args.get("start_point", "").strip() or "上海"
     end = request.args.get("end_point", "").strip() or "宁波"
     required = ["original_speed", "optimized_speed", "distance"]
-    # 验证必填参数
     if not all(request.args.get(p) for p in required):
         logger.warning("节油量计算：参数不完整")
         return "参数不完整，请填写航速和航程", 400
@@ -395,14 +391,12 @@ def fuel_saving():
         original = float(request.args["original_speed"])
         optimized = float(request.args["optimized_speed"])
         dist = float(request.args["distance"])
-        # 验证参数合理性
         if original <= 0 or optimized <= 0 or dist <= 0:
             logger.warning(f"节油量计算：参数无效（原航速：{original}，优化航速：{optimized}，航程：{dist}）")
             return "参数错误（航速和航程必须为正数）", 400
         if optimized >= original:
             logger.warning(f"节油量计算：优化航速({optimized})不小于原航速({original})")
             return "参数错误（优化航速必须小于原航速）", 400
-        # 计算节油量（公式合理，保留2位小数）
         saving = round((original - optimized) * dist * 0.8, 2)
         logger.info(f"节油量计算完成：{start}→{end}，节油量：{saving}吨")
         return render_template(
@@ -424,7 +418,6 @@ def export_pdf():
         start = request.args.get("start_point", "").strip() or "上海"
         end = request.args.get("end_point", "").strip() or "宁波"
         route_points = get_preset_route(start, end) if (start and end) else read_route_data()
-        # 准备PDF数据
         fuel_data = {
             "start": start,
             "end": end,
@@ -433,7 +426,6 @@ def export_pdf():
             "distance": request.args.get("distance", str(calculate_route_distance(route_points))),
             "saving": request.args.get("saving", "未计算")
         }
-        # 生成PDF
         pdf_buffer = generate_route_report(route_points, fuel_data)
         logger.info(f"PDF导出成功：{start}→{end}")
         response = make_response(send_file(
@@ -455,3 +447,4 @@ if __name__ == "__main__":
         port=app.config["PORT"],
         host=app.config["HOST"]
     )
+    
