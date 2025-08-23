@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}评委专属彩蛋{% endblock %}
+
+{% block content %}
+<div
+    style="max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <!-- 彩蛋标题 -->
+    <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">🎉 评委专属区域 🎉</h1>
+
+    <!-- 团队信息卡片 -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">团队信息</h3>
+        <p><strong>团队名称：</strong> {{ team_info.team_name }}</p>
+        <p><strong>团队成员：</strong> {{ team_info.members|join("，") }}</p>
+        <p><strong>开发时间：</strong> {{ team_info.development_time }}</p>
+    </div>
+
+    <!-- 项目介绍 -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">项目介绍</h3>
+        <p>{{ team_info.project_intro }}</p>
+    </div>
+
+    <!-- 技术栈 -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">技术栈</h3>
+        <ul style="list-style-type: disc; padding-left: 20px;">
+            {% for tech in team_info.tech_stack %}
+            <li>{{ tech }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- 完成成果 -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">完成成果</h3>
+        <ul style="list-style-type: square; padding-left: 20px;">
+            {% for achievement in team_info.achievements %}
+            <li>{{ achievement }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- 返回主页按钮 -->
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="{{ url_for('route_map') }}"
+            style="display: inline-block; padding: 10px 20px; background: #2ecc71; color: white; text-decoration: none; border-radius: 4px;">
+            返回系统首页
+        </a>
+    </div>
+</div>
+{% endblock %}

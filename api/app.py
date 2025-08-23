@@ -296,13 +296,15 @@ def login():
     # 原有：普通用户登录验证
     if app.config["VALID_USER"].get(user) == pwd:
         return redirect(url_for("login_success", username=user))
-    # 新增：评委彩蛋账号验证
-    if user == "judge" and pwd == "ship2024":
+    # 新增：评委彩蛋账号验证（中文信息）
+    if user == "judge" and pwd == "ship2024":  # 评委账号密码
         return render_template("judge_easter_egg.html", team_info={
-            "team_name": "Computer B Team",
-            "members": ["Member 1 (Backend)", "Member 2 (Frontend)", "Member 3 (Data Visualization)"],
-            "project_intro": "Ship Route Visualization & Fuel Saving System: Supports route display, fuel calculation, and PDF export.",
-            "tech_stack": ["Flask (Backend)", "Amap API (Map)", "ReportLab (PDF)", "HTML/CSS (Frontend)"]
+            "team_name": "计算机B组",
+            "members": ["张明（后端开发）", "李华（前端设计）", "王芳（数据可视化）"],
+            "project_intro": "船舶航线可视化与节油系统：支持航线展示、油耗计算和PDF报告导出功能，帮助优化船舶航行效率。",
+            "tech_stack": ["Flask（后端框架）", "高德地图API（地图服务）", "ReportLab（PDF生成）", "HTML/CSS（前端界面）"],
+            "development_time": "2024年8月12日-8月25日",
+            "achievements": ["完成基础框架搭建", "实现航线可视化", "开发节油计算功能", "支持PDF报告导出", "适配移动端访问"]
         })
     # 原有：密码错误提示
     return "用户名或密码错误（正确：admin/123456）", 401
@@ -399,3 +401,4 @@ def export_pdf():
 
 if __name__ == "__main__":
     app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
+    
