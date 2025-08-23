@@ -92,7 +92,7 @@ def generate_route_report(route_points, fuel_data):
 
     # 2. 强制注册中文字体
     try:
-        pdfmetrics.registerFont(TTFont('STXIHEI', 'C:/Users/TANG/Desktop/ship-system/static/fonts/STXIHEI.TTF'))
+        pdfmetrics.registerFont(TTFont('STXIHEI', 'STXIHEI.TTF'))
         addMapping('STXIHEI', 0, 0, 'STXIHEI')
         addMapping('STXIHEI', 0, 1, 'STXIHEI')
         font_name = 'STXIHEI'
