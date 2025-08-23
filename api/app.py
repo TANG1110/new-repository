@@ -5,7 +5,7 @@ import logging
 import math
 from io import BytesIO
 from datetime import datetime
-from pathlib import Path  # 新增：使用pathlib处理路径更可靠
+from pathlib import Path  # 用于可靠的路径处理
 from flask import Flask, request, render_template, redirect, url_for, make_response, send_file
 
 # PDF生成相关库
@@ -16,9 +16,9 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 
 # --------------------------- 配置区 ---------------------------
-# 【修复】使用Path确保跨平台路径兼容性，避免Vercel路径错误
+# 使用Path确保跨平台路径兼容性（修复Vercel路径问题）
 API_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = API_DIR.parent  # 假设app.py在项目根目录（与static同级）
+PROJECT_ROOT = API_DIR.parent
 
 # 预设航线文件路径（严格遵循“城市拼音-城市拼音.json”）
 PRESET_ROUTE_FILES = {
@@ -36,11 +36,11 @@ PRESET_ROUTE_FILES = {
 
 CONFIG = {
     "SECRET_KEY": "1389a7514ce65016496e0ee1349282b6",
-    "DEBUG": False,  # Vercel部署必须关闭DEBUG
+    "DEBUG": False,  # Vercel部署必须关闭
     "PORT": int(os.environ.get("PORT", 5000)),
     "HOST": "0.0.0.0",
     "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
-    "ROUTE_DATA_PATH": PROJECT_ROOT / "static" / "route_data.json",  # 修正路径
+    "ROUTE_DATA_PATH": PROJECT_ROOT / "static" / "route_data.json",
     "VALID_USER": {"admin": "123456"}
 }
 
@@ -50,7 +50,7 @@ LOCATION_TRANSLATIONS = {
     "青岛": "Qingdao", "大连": "Dalian", "天津": "Tianjin", "厦门": "Xiamen", "香港": "Hong Kong"
 }
 
-# 日志配置（增加航线匹配详细日志，便于调试）
+# 日志配置（增加数据格式错误日志）
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -60,12 +60,13 @@ logger = logging.getLogger(__name__)
 
 # --------------------------- 工具函数 ---------------------------
 def read_route_data():
-    """读取默认航线（上海→宁波）"""
+    """读取默认航线（上海→宁波），确保返回有效格式"""
     file_path = CONFIG["ROUTE_DATA_PATH"]
-    if not os.path.exists(file_path):
-        logger.warning(f"默认航线文件不存在: {file_path}，自动创建上海-宁波默认航线")
-        sh_nb_default = {
-            "points": [
+    try:
+        if not os.path.exists(file_path):
+            logger.warning(f"默认航线文件不存在: {file_path}，使用内置备用航线")
+            # 直接返回内置备用航线，避免动态生成文件
+            return [
                 [121.582812, 31.372057], [121.642376, 31.372274], [121.719159, 31.329024],
                 [121.808468, 31.277377], [121.862846, 31.266428], [122.037651, 31.251066],
                 [122.101726, 31.06938], [122.201797, 30.629212], [122.11298, 30.442215],
@@ -75,20 +76,16 @@ def read_route_data():
                 [122.168266, 29.929254], [122.176948, 29.897783], [122.150901, 29.866987],
                 [122.02136, 29.822932]
             ]
-        }
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(sh_nb_default, f, indent=2)
-        return sh_nb_default["points"]
-    try:
+        
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             if "points" not in data or not isinstance(data["points"], list):
-                logger.error(f"默认航线文件格式错误：缺少'points'字段或字段类型错误")
-                return []
+                logger.error(f"默认航线文件格式错误：缺少'points'字段，使用备用航线")
+                return read_route_data.__default_route  # 使用内置备用
             return data["points"]
     except Exception as e:
-        logger.error(f"读取默认航线失败: {str(e)}，使用上海-宁波备用航线")
-        sh_nb_backup = [
+        logger.error(f"读取默认航线失败: {str(e)}，使用备用航线")
+        return [
             [121.582812, 31.372057], [121.642376, 31.372274], [121.719159, 31.329024],
             [121.808468, 31.277377], [121.862846, 31.266428], [122.037651, 31.251066],
             [122.101726, 31.06938], [122.201797, 30.629212], [122.11298, 30.442215],
@@ -98,19 +95,30 @@ def read_route_data():
             [122.168266, 29.929254], [122.176948, 29.897783], [122.150901, 29.866987],
             [122.02136, 29.822932]
         ]
-        return sh_nb_backup
+    # 定义静态备用航线，确保始终有数据
+    __default_route = [
+        [121.582812, 31.372057], [121.642376, 31.372274], [121.719159, 31.329024],
+        [121.808468, 31.277377], [121.862846, 31.266428], [122.037651, 31.251066],
+        [122.101726, 31.06938], [122.201797, 30.629212], [122.11298, 30.442215],
+        [121.89094, 30.425198], [121.819322, 30.269414], [121.69957, 30.164341],
+        [121.854434, 29.957196], [121.854434, 29.957196], [121.910951, 29.954561],
+        [121.952784, 29.977126], [122.02619, 29.925834], [122.069602, 29.911468],
+        [122.168266, 29.929254], [122.176948, 29.897783], [122.150901, 29.866987],
+        [122.02136, 29.822932]
+    ]
 
 def get_preset_route(start_point: str, end_point: str) -> list:
-    """【优化】匹配预设航线（支持中文/拼音/简称/大小写模糊匹配）"""
+    """匹配预设航线（增强容错性，确保返回有效格式）"""
+    # 确保始终返回列表格式，避免前端解析错误
     if not start_point or not end_point:
-        logger.warning("起点或终点为空，返回默认航线（上海-宁波）")
-        return read_route_data()  # 未输入时返回默认航线，确保地图有数据
+        logger.info("起点或终点为空，返回默认航线")
+        return read_route_data()
     
     # 统一转为小写，增强匹配容错
     start = start_point.strip().lower()
     end = end_point.strip().lower()
     
-    # 扩展地点别名库，支持更多输入形式（如拼音缩写、中英文混合）
+    # 扩展地点别名库，支持更多输入形式
     location_aliases = {
         "上海": ["上海", "shanghai", "沪", "sh", "shang hai"],
         "宁波": ["宁波", "ningbo", "甬", "nb", "ning bo"],
@@ -123,7 +131,7 @@ def get_preset_route(start_point: str, end_point: str) -> list:
         "香港": ["香港", "hong kong", "港", "hk", "xiang gang", "香"]
     }
     
-    # 【优化】模糊匹配：支持首字匹配、部分匹配
+    # 模糊匹配逻辑
     matched_start = None
     matched_end = None
     for std_name, aliases in location_aliases.items():
@@ -138,40 +146,35 @@ def get_preset_route(start_point: str, end_point: str) -> list:
                     matched_end = std_name
                     break
     
-    # 打印匹配日志，便于调试
-    logger.info(f"输入起点：{start_point} → 匹配结果：{matched_start}")
-    logger.info(f"输入终点：{end_point} → 匹配结果：{matched_end}")
+    logger.info(f"输入匹配详情：{start_point}→{matched_start}，{end_point}→{matched_end}")
     
-    # 未匹配到有效地点时，返回空列表（前端会提示）
+    # 未匹配到有效地点时，返回默认航线（而非空列表，避免前端错误）
     if not matched_start or not matched_end:
-        logger.warning(f"未匹配到有效地点：{start_point}→{end_point}，支持城市：{list(location_aliases.keys())}")
-        return []
+        logger.warning(f"未匹配到有效地点：{start_point}→{end_point}，使用默认航线")
+        return read_route_data()
     
-    # 构建航线键（如“广州-深圳”）
     route_key = f"{matched_start}-{matched_end}"
     if route_key not in PRESET_ROUTE_FILES:
-        logger.warning(f"无预设航线：{route_key}，可用航线：{list(PRESET_ROUTE_FILES.keys())}")
-        return []
+        logger.warning(f"无预设航线：{route_key}，使用默认航线")
+        return read_route_data()
     
-    # 检查航线文件是否存在
     file_path = PRESET_ROUTE_FILES[route_key]
     if not os.path.exists(file_path):
-        logger.error(f"航线文件缺失：{file_path}")
-        return []
+        logger.error(f"航线文件缺失：{file_path}，使用默认航线")
+        return read_route_data()
     
-    # 读取并验证航线文件
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             route_points = data.get("points", [])
             if len(route_points) < 2:
-                logger.error(f"航线文件{route_key}格式错误：坐标点不足（{len(route_points)}个）")
-                return []
-            logger.info(f"✅ 成功加载航线：{route_key}（{len(route_points)}个坐标点）")
+                logger.error(f"航线{route_key}坐标点不足，使用默认航线")
+                return read_route_data()
+            logger.info(f"成功加载航线：{route_key}（{len(route_points)}个坐标）")
             return route_points
     except Exception as e:
-        logger.error(f"读取航线{route_key}失败：{str(e)}")
-        return []
+        logger.error(f"读取航线{route_key}失败：{str(e)}，使用默认航线")
+        return read_route_data()
 
 def calculate_route_distance(points: list) -> float:
     """计算航线距离（单位：海里）"""
@@ -298,7 +301,7 @@ def create_app():
     # 初始化Flask应用
     app = Flask(
         __name__,
-        static_folder=str(static_path),  # 转换为字符串兼容Flask
+        static_folder=str(static_path),  # 转换为字符串路径
         template_folder=str(template_path)
     )
     app.config.from_mapping(CONFIG)
@@ -353,8 +356,13 @@ def route_map():
     optimized = request.args.get("optimized_speed", "").strip()
     user_dist = request.args.get("distance", "").strip()
 
-    # 【关键】未输入起点终点时，返回默认航线（确保地图有数据）
-    route_points = get_preset_route(start, end) if (start or end) else read_route_data()
+    # 确保始终返回有效航线数据（关键修复：未输入时返回默认航线）
+    route_points = get_preset_route(start, end)
+    # 强制验证数据格式，确保是列表
+    if not isinstance(route_points, list):
+        logger.error("航线数据格式错误，强制使用默认航线")
+        route_points = read_route_data()
+
     # 计算航程
     default_dist = calculate_route_distance(route_points) if len(route_points) >= 2 else 0.0
     final_dist = user_dist if (user_dist and float(user_dist) > 0) else str(default_dist)
@@ -367,10 +375,18 @@ def route_map():
     )
     default_route_tip = "（使用默认上海-宁波航线）" if is_default_route else ""
 
-    logger.info(f"航线加载完成：{start}→{end}，是否默认航线：{is_default_route}，航程：{final_dist}海里")
+    # 确保传递给前端的是有效的JSON字符串（关键修复）
+    try:
+        route_points_json = json.dumps(route_points)
+        logger.info(f"航线数据序列化成功，坐标点数量：{len(route_points)}")
+    except Exception as e:
+        logger.error(f"航线数据序列化失败：{str(e)}，使用备用默认航线")
+        route_points = read_route_data()
+        route_points_json = json.dumps(route_points)
+
     return render_template(
         "route_map.html",
-        route_points=json.dumps(route_points),  # 传递JSON格式坐标
+        route_points=route_points_json,  # 传递确保有效的JSON字符串
         start_point=start,
         end_point=end,
         original_speed=original,
@@ -417,7 +433,7 @@ def export_pdf():
     try:
         start = request.args.get("start_point", "").strip() or "上海"
         end = request.args.get("end_point", "").strip() or "宁波"
-        route_points = get_preset_route(start, end) if (start and end) else read_route_data()
+        route_points = get_preset_route(start, end)
         fuel_data = {
             "start": start,
             "end": end,
@@ -447,4 +463,3 @@ if __name__ == "__main__":
         port=app.config["PORT"],
         host=app.config["HOST"]
     )
-    
