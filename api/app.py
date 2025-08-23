@@ -37,7 +37,7 @@ PRESET_ROUTE_FILES = {
 CONFIG = {
     "SECRET_KEY": "1389a7514ce65016496e0ee1349282b6",
     "DEBUG": False,  # Vercel部署必须关闭
-    "PORT": int(os.environ.get("PORT", 5000)),
+    "PORT": int(os.environ.get("PORT", 5001)),
     "HOST": "0.0.0.0",
     "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
     "ROUTE_DATA_PATH": PROJECT_ROOT / "static" / "route_data.json",
