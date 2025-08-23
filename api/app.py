@@ -92,12 +92,12 @@ def generate_route_report(route_points, fuel_data):
 
     # 2. 强制注册中文字体
     try:
-        pdfmetrics.registerFont(TTFont('SimHei', 'SimHei.ttf'))
-        addMapping('SimHei', 0, 0, 'SimHei')
-        addMapping('SimHei', 0, 1, 'SimHei')
-        font_name = 'SimHei'
+        pdfmetrics.registerFont(TTFont('STXIHEI', 'C:/Users/TANG/Desktop/ship-system/static/fonts/STXIHEI.TTF'))
+        addMapping('STXIHEI', 0, 0, 'STXIHEI')
+        addMapping('STXIHEI', 0, 1, 'STXIHEI')
+        font_name = 'STXIHEI'
     except:
-        logger.warning("⚠️ 未找到SimHei，使用默认字体")
+        logger.warning("⚠️ 未找到STXIHEI，使用默认字体")
         font_name = 'Helvetica'
 
     # 3. 紧凑样式配置（控制整体高度）
