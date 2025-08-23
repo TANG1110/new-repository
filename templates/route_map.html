@@ -183,70 +183,84 @@
 
 <script>
     window.onload = function () {
-        // 解析后端传递的航线数据
-        const routePoints = JSON.parse('{{ route_points|tojson|safe }}');
+        try {
+            // 修复：去掉|tojson，避免双重转义
+            const routePoints = JSON.parse('{{ route_points|safe }}');
 
-        // 初始化地图（如果有航线数据则居中到起点，否则默认上海附近）
-        const map = new AMap.Map('map', {
-            center: routePoints.length > 0 ? routePoints[0] : [121.487899, 31.249162],
-            zoom: 12,
-            resizeEnable: true
-        });
+            // 修复：动态调整zoom（适配低纬度航线）
+            let initZoom = 12;
+            if (routePoints.length > 1) {
+                const avgLat = routePoints.reduce((sum, [lng, lat]) => sum + lat, 0) / routePoints.length;
+                initZoom = avgLat < 25 ? 9 : 12;
+            }
 
-        // 绘制航线
-        if (routePoints.length > 1) {
-            const polyline = new AMap.Polyline({
-                path: routePoints,
-                strokeColor: '#0033FF',
-                strokeWeight: 5,
-                strokeOpacity: 0.8,
-                strokeStyle: 'solid',
-                strokeDasharray: [10, 5] // 虚线样式，增强视觉效果
+            const map = new AMap.Map('map', {
+                center: routePoints.length > 0 ? routePoints[0] : [121.487899, 31.249162],
+                zoom: initZoom,
+                resizeEnable: true
             });
-            polyline.setMap(map);
-            // 自动调整地图视野以显示完整航线
-            map.setFitView([polyline]);
-        } else if (routePoints.length === 1) {
-            // 只有一个点时显示标记
-            new AMap.Marker({
-                position: routePoints[0],
-                title: '航线点',
-                icon: new AMap.Icon({
-                    size: new AMap.Size(30, 30),
-                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
-                })
-            }).setMap(map);
-        } else {
-            // 无航线数据时显示提示
-            document.querySelector('.map-wrapper').insertAdjacentHTML('afterbegin',
-                '<div style="text-align:center; padding:10px; color:#666;">请输入起点和终点并点击"加载航线"</div>'
+
+            if (routePoints.length > 1) {
+                const polyline = new AMap.Polyline({
+                    path: routePoints,
+                    strokeColor: '#0033FF',
+                    strokeWeight: 5,
+                    strokeOpacity: 0.8,
+                    strokeStyle: 'solid',
+                    strokeDasharray: [10, 5]
+                });
+                polyline.setMap(map);
+                // 修复：视野适配容错
+                map.setFitView([polyline], false, [30, 30]).catch(err => {
+                    console.error("视野适配失败：", err);
+                    map.setZoom(initZoom);
+                });
+            } else if (routePoints.length === 1) {
+                new AMap.Marker({
+                    position: routePoints[0],
+                    title: '航线点',
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(30, 30),
+                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
+                    })
+                }).setMap(map);
+            } else {
+                document.querySelector('.map-wrapper').insertAdjacentHTML('afterbegin',
+                    '<div style="text-align:center; padding:10px; color:#666;">请输入起点和终点并点击"加载航线"</div>'
+                );
+            }
+
+            // 标记起点（原有逻辑不变）
+            if (routePoints.length > 0) {
+                new AMap.Marker({
+                    position: routePoints[0],
+                    title: '起点',
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(30, 30),
+                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png'
+                    }),
+                    anchor: 'bottom-center'
+                }).setMap(map);
+            }
+
+            // 标记终点（原有逻辑不变）
+            if (routePoints.length > 1) {
+                new AMap.Marker({
+                    position: routePoints[routePoints.length - 1],
+                    title: '终点',
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(30, 30),
+                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
+                    }),
+                    anchor: 'bottom-center'
+                }).setMap(map);
+            }
+        } catch (e) {
+            console.error("地图加载失败：", e);
+            document.querySelector('.map-wrapper').insertAdjacentHTML(
+                'afterbegin',
+                '<div style="text-align:center; padding:10px; color:#ff4444;">航线加载失败，请检查输入或网络！</div>'
             );
-        }
-
-        // 标记起点
-        if (routePoints.length > 0) {
-            new AMap.Marker({
-                position: routePoints[0],
-                title: '起点',
-                icon: new AMap.Icon({
-                    size: new AMap.Size(30, 30),
-                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png'
-                }),
-                anchor: 'bottom-center'
-            }).setMap(map);
-        }
-
-        // 标记终点
-        if (routePoints.length > 1) {
-            new AMap.Marker({
-                position: routePoints[routePoints.length - 1],
-                title: '终点',
-                icon: new AMap.Icon({
-                    size: new AMap.Size(30, 30),
-                    image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
-                }),
-                anchor: 'bottom-center'
-            }).setMap(map);
         }
     };
 </script>

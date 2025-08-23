@@ -33,8 +33,8 @@ PRESET_ROUTE_FILES = {
 }
 
 CONFIG = {
-    "SECRET_KEY": "your_secret_key_here",
-    "DEBUG": True,  # 开发阶段打开DEBUG，便于排查航线加载日志
+    "SECRET_KEY": "1389a7514ce65016496e0ee1349282b6",
+    "DEBUG": False,  # Vercel部署必须关闭DEBUG
     "PORT": int(os.environ.get("PORT", 5000)),
     "HOST": "0.0.0.0",
     "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",  # 已验证密钥格式正确
@@ -287,93 +287,10 @@ def create_app():
     static_path = os.path.join(PROJECT_ROOT, "static")
     template_path = os.path.join(PROJECT_ROOT, "templates")
 
-    # 自动创建文件夹和预设航线文件（首次运行时）
+    # 自动创建文件夹（首次运行时）
     if not os.path.exists(static_path):
         os.makedirs(static_path)
-        logger.info("首次运行，自动创建静态文件夹和预设航线文件")
-
-        # 1. 生成默认航线（上海→宁波）
-        sh_nb_default = {
-            "points": [
-                [121.582812, 31.372057], [121.642376, 31.372274], [121.719159, 31.329024],
-                [121.808468, 31.277377], [121.862846, 31.266428], [122.037651, 31.251066],
-                [122.101726, 31.06938], [122.201797, 30.629212], [122.11298, 30.442215],
-                [121.89094, 30.425198], [121.819322, 30.269414], [121.69957, 30.164341],
-                [121.854434, 29.957196], [121.854434, 29.957196], [121.910951, 29.954561],
-                [121.952784, 29.977126], [122.02619, 29.925834], [122.069602, 29.911468],
-                [122.168266, 29.929254], [122.176948, 29.897783], [122.150901, 29.866987],
-                [122.02136, 29.822932]
-            ]
-        }
-        with open(CONFIG["ROUTE_DATA_PATH"], "w", encoding="utf-8") as f:
-            json.dump(sh_nb_default, f, indent=2)
-
-        # 2. 生成上海-宁波/宁波-上海航线
-        with open(PRESET_ROUTE_FILES["上海-宁波"], "w", encoding="utf-8") as f:
-            json.dump(sh_nb_default, f, indent=2)
-        with open(PRESET_ROUTE_FILES["宁波-上海"], "w", encoding="utf-8") as f:
-            json.dump({"points": sh_nb_default["points"][::-1]}, f, indent=2)
-
-        # 3. 生成广州-深圳/深圳-广州航线
-        gz_sz_route = {
-            "points": [
-                [113.285128, 23.111923], [113.284727, 23.110575], [113.297272, 23.106393],
-                [113.308973, 23.106259], [113.320968, 23.10909], [113.338126, 23.109922],
-                [113.373377, 23.107627], [113.391791, 23.105829], [113.402317, 23.098721],
-                [113.422089, 23.088875], [113.452281, 23.08773], [113.478383, 23.083281],
-                [113.491754, 23.077131], [113.495856, 23.067413], [113.494287, 23.062199],
-                [113.511608, 23.036716], [113.567685, 22.886009], [113.569526, 22.853788],
-                [113.601735, 22.830041], [113.620141, 22.79526], [113.766466, 22.646709],
-                [113.813923, 22.600991]
-            ]
-        }
-        with open(PRESET_ROUTE_FILES["广州-深圳"], "w", encoding="utf-8") as f:
-            json.dump(gz_sz_route, f, indent=2)
-        with open(PRESET_ROUTE_FILES["深圳-广州"], "w", encoding="utf-8") as f:
-            json.dump({"points": gz_sz_route["points"][::-1]}, f, indent=2)
-
-        # 4. 生成青岛-大连/大连-青岛航线
-        qd_dl_route = {
-            "points": [
-                [120.30834, 36.082055], [120.263841, 36.070355], [120.26607, 36.034583],
-                [121.114344, 36.001208], [123.309681, 35.991833], [123.268417, 38.207562],
-                [121.656502, 38.938648]
-            ]
-        }
-        with open(PRESET_ROUTE_FILES["青岛-大连"], "w", encoding="utf-8") as f:
-            json.dump(qd_dl_route, f, indent=2)
-        with open(PRESET_ROUTE_FILES["大连-青岛"], "w", encoding="utf-8") as f:
-            json.dump({"points": qd_dl_route["points"][::-1]}, f, indent=2)
-
-        # 5. 生成天津-青岛/青岛-天津航线
-        tj_qd_route = {
-            "points": [
-                [117.855978, 38.952005], [117.889123, 38.994118], [120.655656, 38.357795],
-                [121.147563, 38.60534], [123.268417, 38.207562], [123.309681, 35.991833],
-                [121.114344, 36.001208], [120.26607, 36.034583], [120.263841, 36.070355],
-                [120.30834, 36.082055]
-            ]
-        }
-        with open(PRESET_ROUTE_FILES["天津-青岛"], "w", encoding="utf-8") as f:
-            json.dump(tj_qd_route, f, indent=2)
-        with open(PRESET_ROUTE_FILES["青岛-天津"], "w", encoding="utf-8") as f:
-            json.dump({"points": tj_qd_route["points"][::-1]}, f, indent=2)
-
-        # 6. 生成厦门-香港/香港-厦门航线
-        xm_hk_route = {
-            "points": [
-                [118.072762, 24.454891], [118.071395, 24.452599], [118.071395, 24.452599],
-                [118.086071, 24.424532], [118.297639, 24.323637], [118.142568, 24.363377],
-                [118.297639, 24.323637], [118.25965, 23.61136], [118.062769, 22.125619],
-                [114.310954, 22.21122], [114.277649, 22.240508], [114.2584, 22.274573],
-                [114.239927, 22.284051], [114.210388, 22.300213], [114.174173, 22.285659],
-                [114.162101, 22.293106], [114.169718, 22.29607]
-            ]
-        }
-        with open(PRESET_ROUTE_FILES["厦门-香港"], "w", encoding="utf-8") as f:
-            json.dump(xm_hk_route, f, indent=2)
-        with open(PRESET_ROUTE_FILES["香港-厦门"], "w", encoding="utf-8") as f:
-            json.dump({"points": xm_hk_route["points"][::-1]}, f, indent=2)
+        logger.info("首次运行，自动创建static文件夹（航线文件需手动上传）")
 
     if not os.path.exists(template_path):
         os.makedirs(template_path)
