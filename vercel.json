@@ -2,9 +2,7 @@
     "version": 2,
     "functions": {
         "api/app.py": {
-            "includeFiles": [
-                "static/fonts/STXIHEI.TTF"
-            ]
+            "includeFiles": "static/fonts/STXIHEI.TTF"
         }
     },
     "rewrites": [
