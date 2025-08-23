@@ -1,10 +1,5 @@
 {
     "version": 2,
-    "functions": {
-        "api/app.py": {
-            "memory": 1024
-        }
-    },
     "rewrites": [
         {
             "source": "/",
