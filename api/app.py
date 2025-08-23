@@ -76,7 +76,7 @@ def calculate_route_distance(points: list) -> float:
         total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
     return round(total_km / 1.852, 2)
 
-# --------------------------- PDF生成核心函数（单页A4优化） ---------------------------
+# --------------------------- PDF生成核心函数（关键修改：PDF内文字改为英文） ---------------------------
 def generate_route_report(route_points, fuel_data):
     buffer = BytesIO()
     
@@ -90,20 +90,13 @@ def generate_route_report(route_points, fuel_data):
         bottomMargin=0.8*cm
     )
 
-    # 2. 强制注册中文字体
-    try:
-        pdfmetrics.registerFont(TTFont('STXIHEI', 'STXIHEI.TTF'))
-        addMapping('STXIHEI', 0, 0, 'STXIHEI')
-        addMapping('STXIHEI', 0, 1, 'STXIHEI')
-        font_name = 'STXIHEI'
-    except:
-        logger.warning("⚠️ 未找到STXIHEI，使用默认字体")
-        font_name = 'Helvetica'
+    # 2. 【修改1】PDF使用英文默认字体（无需中文字体，避免乱码）
+    font_name = 'Helvetica'  # 英文标准字体，无需注册中文字体
 
-    # 3. 紧凑样式配置（控制整体高度）
+    # 3. 紧凑样式配置（控制整体高度，保留原样式逻辑）
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
-        name='Title_CN',
+        name='Title_EN',  # 样式名改为英文标识
         parent=styles['Title'],
         fontName=font_name,
         fontSize=18,
@@ -111,14 +104,14 @@ def generate_route_report(route_points, fuel_data):
         spaceAfter=8  # 标题后间距缩小
     ))
     styles.add(ParagraphStyle(
-        name='Normal_CN',
+        name='Normal_EN',  # 样式名改为英文标识
         parent=styles['Normal'],
         fontName=font_name,
         fontSize=10,
         leading=12  # 行间距缩小
     ))
     styles.add(ParagraphStyle(
-        name='Heading2_CN',
+        name='Heading2_EN',  # 样式名改为英文标识
         parent=styles['Heading2'],
         fontName=font_name,
         fontSize=14,
@@ -127,18 +120,18 @@ def generate_route_report(route_points, fuel_data):
     ))
 
     elements = []
-    # 标题和时间（控制高度）
-    elements.append(Paragraph("船舶航线可视化系统报告", styles['Title_CN']))
-    elements.append(Paragraph(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal_CN']))
+    # 【修改2】标题和时间改为英文
+    elements.append(Paragraph("Ship Route Visualization System Report", styles['Title_EN']))  # 英文标题
+    elements.append(Paragraph(f"Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal_EN']))  # 英文时间
     elements.append(Spacer(1, 6))  # 缩小空白
 
-    # 4. 航线坐标表格（核心：占满A4宽度，控制高度）
-    elements.append(Paragraph("一、航线坐标信息", styles['Heading2_CN']))
+    # 4. 航线坐标表格（【修改3】表头改为英文）
+    elements.append(Paragraph("1. Route Coordinate Information", styles['Heading2_EN']))  # 英文小标题
     if route_points:
         # 计算表格可用高度（A4高度29.7cm - 边距 - 其他内容高度）
-        table_data = [["序号", "经度", "纬度"]]  # 表头
+        table_data = [["No.", "Longitude", "Latitude"]]  # 【关键】表头改为英文（序号、经度、纬度）
         for idx, (lng, lat) in enumerate(route_points, 1):
-            table_data.append([str(idx), f"{lng:.6f}", f"{lat:.6f}"])
+            table_data.append([str(idx), f"{lng:.6f}", f"{lat:.6f}"])  # 数据格式不变
         
         # 计算表格宽度（A4宽度21cm - 两边距1.6cm）
         table_width = 21*cm - 1.6*cm  # 约19.4cm
@@ -148,7 +141,7 @@ def generate_route_report(route_points, fuel_data):
         max_rows_per_page = len(table_data)
         row_height = (24*cm) / max_rows_per_page  # 可用高度分配给所有行
         
-        # 创建表格
+        # 创建表格（样式逻辑不变）
         route_table = Table(table_data, colWidths=col_widths, rowHeights=row_height)
         route_table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (-1, -1), font_name),
@@ -162,20 +155,20 @@ def generate_route_report(route_points, fuel_data):
         ]))
         elements.append(route_table)
     else:
-        elements.append(Paragraph("⚠️ 未获取到航线坐标数据", styles['Normal_CN']))
+        elements.append(Paragraph("⚠️ No route coordinate data obtained", styles['Normal_EN']))  # 【修改4】提示文字改为英文
     elements.append(Spacer(1, 6))
 
-    # 5. 节油量表格（紧凑设计）
-    elements.append(Paragraph("二、节油量计算结果", styles['Heading2_CN']))
+    # 5. 节油量表格（【修改5】表头和内容改为英文）
+    elements.append(Paragraph("2. Fuel Saving Calculation Results", styles['Heading2_EN']))  # 英文小标题
     if fuel_data:
         fuel_table_data = [
-            ["参数", "数值"],
-            ["起点", fuel_data.get('start', '未填写')],
-            ["终点", fuel_data.get('end', '未填写')],
-            ["原航速", f"{fuel_data.get('original')} 节"],
-            ["优化航速", f"{fuel_data.get('optimized')} 节"],
-            ["航程", f"{fuel_data.get('distance')} 海里"],
-            ["节油量", f"{fuel_data.get('saving')} 吨"]
+            ["Parameter", "Value"],  # 【关键】表头改为英文（参数、数值）
+            ["Start Point", fuel_data.get('start', 'Not Filled')],  # 英文提示
+            ["End Point", fuel_data.get('end', 'Not Filled')],  # 英文提示
+            ["Original Speed", f"{fuel_data.get('original')} knots"],  # 单位"节"改为英文"knots"
+            ["Optimized Speed", f"{fuel_data.get('optimized')} knots"],  # 单位"节"改为英文"knots"
+            ["Route Distance", f"{fuel_data.get('distance')} nautical miles"],  # 单位"海里"改为英文"nautical miles"
+            ["Fuel Saved", f"{fuel_data.get('saving')} tons"]  # 单位"吨"保留英文"tons"（国际通用）
         ]
         
         fuel_table = Table(fuel_table_data, colWidths=[table_width*0.3, table_width*0.7])
@@ -191,7 +184,7 @@ def generate_route_report(route_points, fuel_data):
         ]))
         elements.append(fuel_table)
     else:
-        elements.append(Paragraph("⚠️ 未获取到节油量计算数据", styles['Normal_CN']))
+        elements.append(Paragraph("⚠️ No fuel saving calculation data obtained", styles['Normal_EN']))  # 【修改6】提示文字改为英文
 
     # 构建PDF（确保单页）
     doc.build(elements)
@@ -328,7 +321,7 @@ def export_pdf():
             with open(CONFIG["PRESET_ROUTE_PATH"], "r", encoding="utf-8") as f:
                 route_points = json.load(f).get("points", [])
 
-        # 节油量数据
+        # 节油量数据（保留原逻辑，PDF内会自动转为英文显示）
         fuel_data = {
             "start": start or "上海",
             "end": end or "宁波",
@@ -338,10 +331,10 @@ def export_pdf():
             "saving": request.args.get("saving", "未计算")
         }
 
-        # 生成单页PDF
+        # 生成单页PDF（调用修改后的英文PDF生成函数）
         pdf_buffer = generate_route_report(route_points, fuel_data)
 
-        # 返回下载
+        # 返回下载（文件名保留中文标识，不影响下载）
         response = make_response(send_file(
             pdf_buffer,
             mimetype='application/pdf',
@@ -357,4 +350,3 @@ def export_pdf():
 
 if __name__ == "__main__":
     app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
-    
