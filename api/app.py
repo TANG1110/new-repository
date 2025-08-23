@@ -293,8 +293,18 @@ def login():
     pwd = request.form.get("password", "").strip()
     if not user or not pwd:
         return "用户名和密码不能为空", 400
+    # 原有：普通用户登录验证
     if app.config["VALID_USER"].get(user) == pwd:
         return redirect(url_for("login_success", username=user))
+    # 新增：评委彩蛋账号验证
+    if user == "judge" and pwd == "ship2024":
+        return render_template("judge_easter_egg.html", team_info={
+            "team_name": "Computer B Team",
+            "members": ["Member 1 (Backend)", "Member 2 (Frontend)", "Member 3 (Data Visualization)"],
+            "project_intro": "Ship Route Visualization & Fuel Saving System: Supports route display, fuel calculation, and PDF export.",
+            "tech_stack": ["Flask (Backend)", "Amap API (Map)", "ReportLab (PDF)", "HTML/CSS (Frontend)"]
+        })
+    # 原有：密码错误提示
     return "用户名或密码错误（正确：admin/123456）", 401
 
 @app.route("/login_success")
