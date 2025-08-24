@@ -97,9 +97,8 @@ def get_preset_route(start_point: str, end_point: str) -> list:
 
 # 新增：加载指定航线文件
 def load_route_file(filename: str) -> list:
-    """加载指定名称的航线JSON文件"""
-    file_path = os.path.join(API_DIR, f"../static/{filename}")
-    print(filename)
+    file_path = os.path.join(API_DIR, "../../steady/{}".format(filename))
+    print(file_path)
     if not os.path.exists(file_path):
         logger.warning(f"⚠️  航线文件不存在: {file_path}")
         return []
