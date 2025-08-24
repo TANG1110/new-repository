@@ -4,7 +4,6 @@
 
 {% block head_css %}
 <style>
-    /* 统一页面风格 */
     .page-title {
         text-align: center;
         color: #0033FF;
@@ -59,7 +58,6 @@
         background: #0021aa;
     }
 
-    /* 地图容器样式（确保地图可见） */
     .map-wrapper {
         width: 90%;
         max-width: 1200px;
@@ -70,12 +68,10 @@
     #map {
         width: 100%;
         height: 500px;
-        /* 固定高度，确保地图能显示 */
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    /* 信息提示样式（不遮挡地图） */
     .info-text {
         color: #666;
         font-size: 14px;
@@ -83,62 +79,89 @@
         font-style: italic;
     }
 
+    /* 未输入起点终点时的提示 */
     .map-tip {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10;
+        padding: 20px 30px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
         text-align: center;
-        padding: 10px;
         color: #666;
-        margin-bottom: 10px;
-        /* 提示在地图上方，不遮挡 */
+        font-size: 16px;
+    }
+
+    /* 航线信息提示 */
+    .route-info {
+        text-align: center;
+        margin: 10px 0;
+        color: #0033FF;
+        font-size: 14px;
     }
 </style>
-<!-- 高德地图JS API（确保链接正确） -->
 <script src="https://webapi.amap.com/maps?v=2.0&key=1389a7514ce65016496e0ee1349282b7"></script>
 {% endblock %}
 
 {% block content %}
-<!-- 标题 -->
+<!-- 标题居中 -->
 <h1 class="page-title">船舶航线可视化系统</h1>
 
-<!-- 航线参数设置 -->
+<!-- 参数输入区域 -->
 <div class="param-container">
     <h3>航线参数设置</h3>
     <form action="{{ url_for('route_map') }}" method="get" class="calc-form">
+        <!-- 起点输入框（默认上海） -->
         <div class="form-group">
             <label>起点</label>
             <input type="text" name="start_point" value="{{ start_point if start_point else '' }}" placeholder="例如：上海">
         </div>
+
+        <!-- 终点输入框（默认宁波） -->
         <div class="form-group">
             <label>终点</label>
             <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="例如：宁波">
         </div>
+
+        <!-- 原航速输入框 -->
         <div class="form-group">
             <label>原航速（节）</label>
             <input type="number" name="original_speed" step="0.1" value="{{ original_speed if original_speed else '' }}"
                 placeholder="例如：15.5">
         </div>
+
+        <!-- 优化航速输入框 -->
         <div class="form-group">
             <label>优化航速（节）</label>
             <input type="number" name="optimized_speed" step="0.1"
                 value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3">
         </div>
+
+        <!-- 航程输入框（自动计算/手动输入） -->
         <div class="form-group">
             <label>航程（海里）</label>
             <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
                 placeholder="自动计算">
-            <div class="info-text">留空则自动计算航线距离</div>
+            <div class="info-text">留空则自动计算航线距离（上海-宁波默认约130海里）</div>
         </div>
+
+        <!-- 提交按钮 -->
         <div>
             <button type="submit">加载航线</button>
         </div>
     </form>
 </div>
 
-<!-- 节油量计算 -->
+<!-- 节油量计算表单 -->
 <div class="param-container">
     <h3>节油量计算</h3>
     <form action="{{ url_for('fuel_saving') }}" method="get" class="calc-form">
         <input type="hidden" name="start_point" value="{{ start_point if start_point else '' }}">
         <input type="hidden" name="end_point" value="{{ end_point if end_point else '' }}">
+
         <div class="form-group">
             <label>原航速（节）</label>
             <input type="number" name="original_speed" step="0.1" required
@@ -152,56 +175,73 @@
         <div class="form-group">
             <label>航程（海里）</label>
             <input type="number" name="distance" step="0.1" required value="{{ distance if distance else '' }}"
-                placeholder="例如：500">
+                placeholder="例如：130">
         </div>
         <div>
             <button type="submit">计算节油量</button>
+            {% if route_points %}
+            <a href="{{ url_for('export_pdf', 
+                start_point=start_point, 
+                end_point=end_point, 
+                original_speed=original_speed, 
+                optimized_speed=optimized_speed, 
+                distance=distance,
+                saving=request.args.get('saving', '')) }}"
+                style="margin-left:10px; padding:8px 20px; background:#dc3545; color:white; border-radius:4px; text-decoration:none; margin-top:23px; display:inline-block;">
+                导出PDF
+            </a>
+            {% endif %}
         </div>
     </form>
 </div>
 
-<!-- 地图容器（修复提示信息遮挡问题） -->
+<!-- 地图容器（核心：未输入起点终点时显示提示，不画航线） -->
 <div class="map-wrapper">
-    <!-- 无航线时的提示（在地图上方，不遮挡地图） -->
-    <div id="map-tip" class="map-tip" style="display: none;">请输入起点和终点并点击"加载航线"</div>
-    <!-- 地图容器（确保ID为map，与JS对应） -->
+    <!-- 未输入起点终点时显示提示 -->
+    {% if not start_point or not end_point %}
+    <div class="map-tip">请输入起点和终点，点击"加载航线"按钮显示航线</div>
+    {% elif not route_points %}
+    <div class="map-tip">未找到匹配的航线，请检查起点和终点是否正确</div>
+    {% else %}
+    <!-- 有航线时显示航线信息 -->
+    <div class="route-info">当前航线：{{ start_point }} → {{ end_point }}（共{{ route_points|length }}个坐标点，航程：{{ distance }}海里）
+    </div>
+    {% endif %}
     <div id="map"></div>
 </div>
 
 <script>
     window.onload = function () {
         try {
-            // 解析后端传递的航线数据（关键：确保是JSON格式）
-            const routePoints = JSON.parse('{{ route_points|tojson|safe }}');
-            console.log("航线数据:", routePoints);  // 控制台调试用
+            // 解析航线数据（未输入起点终点时为[]）
+            let routePoints = [];
+            const rawData = '{{ route_points|tojson|safe }}';
+            if (rawData && rawData !== 'null' && rawData !== 'undefined') {
+                routePoints = JSON.parse(rawData);
+                if (!Array.isArray(routePoints)) routePoints = [];
+            }
 
-            // 初始化地图（必现空白底图）
+            // 初始化地图（默认上海附近）
             const map = new AMap.Map('map', {
-                center: routePoints.length > 0 ? routePoints[0] : [121.487899, 31.249162],  // 上海附近默认中心
-                zoom: 12,
-                resizeEnable: true  // 允许地图大小自适应
+                center: [121.487899, 31.249162],
+                zoom: 10,
+                resizeEnable: true
             });
 
-            // 处理无航线数据的情况（显示提示，不遮挡地图）
-            if (routePoints.length === 0) {
-                document.getElementById('map-tip').style.display = 'block';
-            }
-
-            // 绘制航线（有足够坐标点时）
+            // 仅当有航线数据时才画航线和标记（核心）
             if (routePoints.length > 1) {
+                // 绘制航线
                 const polyline = new AMap.Polyline({
                     path: routePoints,
-                    strokeColor: '#0033FF',  // 航线颜色
-                    strokeWeight: 5,         // 线宽
-                    strokeOpacity: 0.8,      // 透明度
-                    strokeDasharray: [10, 5] // 虚线样式
+                    strokeColor: '#0033FF',
+                    strokeWeight: 5,
+                    strokeOpacity: 0.8,
+                    strokeDasharray: [10, 5]
                 });
                 polyline.setMap(map);
-                map.setFitView([polyline]);  // 自动调整视野以显示完整航线
-            }
+                map.setFitView([polyline]);
 
-            // 标记起点（红色）
-            if (routePoints.length > 0) {
+                // 起点标记
                 new AMap.Marker({
                     position: routePoints[0],
                     title: '起点',
@@ -211,10 +251,8 @@
                     }),
                     anchor: 'bottom-center'
                 }).setMap(map);
-            }
 
-            // 标记终点（蓝色）
-            if (routePoints.length > 1) {
+                // 终点标记
                 new AMap.Marker({
                     position: routePoints[routePoints.length - 1],
                     title: '终点',
@@ -225,11 +263,27 @@
                     anchor: 'bottom-center'
                 }).setMap(map);
             }
+            // 单个坐标点显示标记
+            else if (routePoints.length === 1) {
+                new AMap.Marker({
+                    position: routePoints[0],
+                    title: '航线点',
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(30, 30),
+                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
+                    })
+                }).setMap(map);
+            }
 
         } catch (error) {
-            // 捕获所有JS错误，避免地图完全不显示
-            console.error("地图初始化错误:", error);
-            document.getElementById('map').innerHTML = `<div style="text-align:center; padding:20px; color:red;">地图加载失败: ${error.message}</div>`;
+            console.error("地图加载失败:", error);
+            // 错误提示
+            const mapWrapper = document.querySelector('.map-wrapper');
+            if (!mapWrapper.querySelector('.map-tip')) {
+                mapWrapper.insertAdjacentHTML('afterbegin',
+                    '<div class="map-tip" style="color:#dc3545;">地图加载失败，请刷新页面重试</div>'
+                );
+            }
         }
     };
 </script>
