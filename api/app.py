@@ -113,7 +113,7 @@ def calculate_route_distance(points: list) -> float:
     """修复：坐标点不足时返回空字符串，避免显示0.0"""
     if len(points) < 2:
         logger.warning(f"⚠️  坐标点不足（仅{len(points)}个），无法计算航程")
-        return ""  # 无航线时返回空，不显示0.0
+        return 0.0  # 无航线时返回空，不显示0.0
     total_km = 0.0
     for i in range(len(points)-1):
         lng1, lat1 = points[i]
