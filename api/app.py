@@ -13,7 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
 
-# --------------------------- 配置区（保持不变） --------------------------- 
+# --------------------------- 配置区 --------------------------- 
 API_DIR = os.path.abspath(os.path.dirname(__file__))
 CONFIG = {
     "SECRET_KEY": "your_secret_key",
@@ -22,6 +22,7 @@ CONFIG = {
     "HOST": "127.0.0.1",
     "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
     "ROUTE_DATA_PATH": os.path.join(API_DIR, "../static/route_data.json"),
+    # 新增：10条航线的文件映射配置
     "PRESET_ROUTE_FILES": {
         ("上海", "宁波"): "shanghai_ningbo.json",
         ("宁波", "上海"): "ningbo_shanghai.json",
@@ -37,6 +38,7 @@ CONFIG = {
     "VALID_USER": {"admin": "123456"}
 }
 
+# 中文到英文地点名称映射表（保持不变）
 LOCATION_TRANSLATIONS = {
     "上海": "Shanghai", "北京": "Beijing", "广州": "Guangzhou",
     "深圳": "Shenzhen", "宁波": "Ningbo", "天津": "Tianjin",
@@ -45,6 +47,7 @@ LOCATION_TRANSLATIONS = {
     "南京": "Nanjing", "杭州": "Hangzhou", "苏州": "Suzhou", "武汉": "Wuhan"
 }
 
+# 日志配置（保持不变）
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -52,8 +55,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --------------------------- 工具函数（修复航线匹配+简化逻辑） --------------------------- 
+# --------------------------- 工具函数 --------------------------- 
 def read_route_data():
+    # 保持不变
     file_path = CONFIG["ROUTE_DATA_PATH"]
     if not os.path.exists(file_path):
         logger.warning(f"⚠️  默认航线文件不存在: {file_path}")
@@ -65,51 +69,46 @@ def read_route_data():
         logger.error(f"❌ 读取默认航线失败: {str(e)}")
         return []
 
-# 修复1：简化航线匹配逻辑（解决上海宁波匹配失败），移除复杂别名，确保中文全称能匹配
+# 修改：支持10条航线的匹配逻辑
 def get_preset_route(start_point: str, end_point: str) -> list:
-    """简化匹配逻辑：仅匹配中文全称/英文全称，确保上海-宁波能正常加载"""
+    """根据起点终点匹配对应的航线文件"""
     if not start_point or not end_point:
         return []
         
-    # 标准化输入（去除空格，保留原始大小写用于匹配）
-    start = start_point.strip()
-    end = end_point.strip()
+    # 标准化输入（去除空格并转为小写）
+    start = start_point.strip().lower()
+    end = end_point.strip().lower()
     
-    # 遍历所有预设航线（包括上海-宁波），支持中文/英文匹配（如“上海”或“Shanghai”）
-    for (s_cn, e_cn), filename in CONFIG["PRESET_ROUTE_FILES"].items():
-        s_en = LOCATION_TRANSLATIONS.get(s_cn, "")  # 中文对应的英文（如上海→Shanghai）
-        e_en = LOCATION_TRANSLATIONS.get(e_cn, "")
-        
-        # 匹配条件：起点是中文/英文，终点是中文/英文
-        if (start == s_cn or start.lower() == s_en.lower()) and \
-           (end == e_cn or end.lower() == e_en.lower()):
-            logger.debug(f"✅ 匹配到航线：{s_cn}→{e_cn}，加载文件：{filename}")
+    # 尝试直接匹配原始名称
+    for (s, e), filename in CONFIG["PRESET_ROUTE_FILES"].items():
+        if (start == s.lower() or start == LOCATION_TRANSLATIONS.get(s, "").lower()) and \
+           (end == e.lower() or end == LOCATION_TRANSLATIONS.get(e, "").lower()):
             return load_route_file(filename)
     
-    logger.warning(f"⚠️  未匹配到航线：{start}→{end}（支持的航线：{[f'{k[0]}→{k[1]}' for k in CONFIG['PRESET_ROUTE_FILES'].keys()]}）")
+    # 尝试反向匹配（例如用户输入拼音或英文）
+    for (s, e), filename in CONFIG["PRESET_ROUTE_FILES"].items():
+        if (start in s.lower() or start in LOCATION_TRANSLATIONS.get(s, "").lower()) and \
+           (end in e.lower() or end in LOCATION_TRANSLATIONS.get(e, "").lower()):
+            return load_route_file(filename)
+    
     return []
 
-# 保持不变：加载航线文件
+# 新增：加载指定航线文件
 def load_route_file(filename: str) -> list:
+    """加载指定名称的航线JSON文件"""
     file_path = os.path.join(API_DIR, f"../static/{filename}")
     if not os.path.exists(file_path):
-        logger.error(f"❌ 航线文件不存在: {file_path}")  # 升级为error级别，方便排查
+        logger.warning(f"⚠️  航线文件不存在: {file_path}")
         return []
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            points = data.get("points", [])
-            logger.debug(f"✅ 读取航线文件成功：{filename}，共{len(points)}个坐标点")
-            return points
+            return json.load(f).get("points", [])
     except Exception as e:
-        logger.error(f"❌ 读取航线文件{filename}失败: {str(e)}")
+        logger.error(f"❌ 读取航线文件失败 {filename}: {str(e)}")
         return []
 
-# 保持不变：计算航程（海里）
+# 其他工具函数（calculate_route_distance、translate_location等保持不变）
 def calculate_route_distance(points: list) -> float:
-    if len(points) < 2:
-        logger.warning(f"⚠️  坐标点不足（仅{len(points)}个），无法计算航程")
-        return 0.0
     total_km = 0.0
     for i in range(len(points)-1):
         lng1, lat1 = points[i]
@@ -120,19 +119,20 @@ def calculate_route_distance(points: list) -> float:
         delta_lng = math.radians(lng2-lng1)
         a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad)*math.cos(lat2_rad)*math.sin(delta_lng/2)**2
         total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
-    distance = round(total_km / 1.852, 2)
-    logger.debug(f"✅ 计算航程成功：{distance} 海里")
-    return distance
+    return round(total_km / 1.852, 2)
 
-# 保持不变：地名转英文
 def translate_location(chinese_name):
     if not chinese_name:
         return "Not Specified"
-    translated = LOCATION_TRANSLATIONS.get(chinese_name.strip(), chinese_name)
-    logger.debug(f"🔄 地名转换：{chinese_name}→{translated}")
-    return translated
+    translated = LOCATION_TRANSLATIONS.get(chinese_name.strip(), None)
+    if translated:
+        return translated
+    for cn, en in LOCATION_TRANSLATIONS.items():
+        if cn in chinese_name:
+            return en
+    return chinese_name
 
-# --------------------------- PDF生成函数（保持不变） ---------------------------
+# --------------------------- PDF生成核心函数（保持不变） ---------------------------
 def generate_route_report(route_points, fuel_data):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -204,19 +204,17 @@ def generate_route_report(route_points, fuel_data):
 
     elements.append(Paragraph("2. Fuel Saving Calculation Results", styles['Heading2_EN']))
     if fuel_data:
-        start = fuel_data.get('start', '上海')
-        end = fuel_data.get('end', '宁波')
-        translated_start = translate_location(start)
-        translated_end = translate_location(end)
+        translated_start = translate_location(fuel_data.get('start'))
+        translated_end = translate_location(fuel_data.get('end'))
         
         fuel_table_data = [
             ["Parameter", "Value"],
             ["Start Point", translated_start],
             ["End Point", translated_end],
-            ["Original Speed", f"{fuel_data.get('original', 'N/A')} knots"],
-            ["Optimized Speed", f"{fuel_data.get('optimized', 'N/A')} knots"],
-            ["Route Distance", f"{fuel_data.get('distance', 'N/A')} nautical miles"],
-            ["Fuel Saved", f"{fuel_data.get('saving', 'N/A')} tons"]
+            ["Original Speed", f"{fuel_data.get('original')} knots"],
+            ["Optimized Speed", f"{fuel_data.get('optimized')} knots"],
+            ["Route Distance", f"{fuel_data.get('distance')} nautical miles"],
+            ["Fuel Saved", f"{fuel_data.get('saving')} tons"]
         ]
         
         fuel_table = Table(fuel_table_data, colWidths=[table_width*0.3, table_width*0.7])
@@ -238,7 +236,7 @@ def generate_route_report(route_points, fuel_data):
     buffer.seek(0)
     return buffer
 
-# --------------------------- 应用初始化（保持不变） --------------------------- 
+# --------------------------- Flask 应用初始化与路由（保持不变） --------------------------- 
 def create_app():
     root_path = os.path.dirname(API_DIR)
     static_path = os.path.join(root_path, "static")
@@ -246,6 +244,7 @@ def create_app():
 
     if not os.path.exists(static_path):
         os.makedirs(static_path)
+        # 初始化默认航线文件
         with open(CONFIG["ROUTE_DATA_PATH"], "w", encoding="utf-8") as f:
             json.dump({"points": [[121.487899, 31.249162], [121.506302, 31.238938]]}, f, indent=2)
 
@@ -260,7 +259,6 @@ def create_app():
 
 app = create_app()
 
-# --------------------------- 路由（修复地图+航程计算） --------------------------- 
 @app.route("/")
 def index():
     return redirect(url_for("login_page"))
@@ -308,19 +306,16 @@ def route_map():
     end = request.args.get("end_point", "").strip()
     original = request.args.get("original_speed", "")
     optimized = request.args.get("optimized_speed", "")
-    user_dist = request.args.get("distance", "").strip()  # 处理用户手动输入的空格
+    user_dist = request.args.get("distance", "")
 
-    # 修复2：获取航线数据（上海宁波现在能正常匹配）
-    route_points = get_preset_route(start, end) if (start and end) else []
-    # 修复3：留白自动计算航程（确保有航线时才计算）
-    default_dist = calculate_route_distance(route_points) if len(route_points) >=2 else ""
-    # 优先用用户输入的航程，否则用自动计算的（解决“回车不计算”）
-    final_dist = user_dist if user_dist else (str(default_dist) if default_dist != 0.0 else "")
+    # 核心：获取匹配的航线数据（支持10条航线）
+    route_points = get_preset_route(start, end) if (start and end) else read_route_data()
+    default_dist = calculate_route_distance(route_points)
+    final_dist = user_dist if user_dist else str(default_dist)
 
-    # 关键修复：传递JSON格式数据给前端（解决地图消失），必须用|tojson|safe
     return render_template(
         "route_map.html",
-        route_points=json.dumps(route_points),  # 后端转为JSON字符串
+        route_points=route_points,
         start_point=start,
         end_point=end,
         original_speed=original,
@@ -342,7 +337,6 @@ def fuel_saving():
         if original <=0 or optimized <=0 or dist <=0 or optimized >= original:
             return "参数错误（优化航速需小于原航速）", 400
         saving = round((original - optimized) * dist * 0.8, 2)
-        logger.debug(f"✅ 计算节油量成功：{saving} 吨")
         return render_template(
             "fuel_result.html",
             start_point=start,
@@ -353,7 +347,7 @@ def fuel_saving():
             saving=saving
         )
     except ValueError:
-        return "参数格式错误（航速/航程需为数字）", 400
+        return "参数格式错误", 400
 
 @app.route("/export_pdf")
 def export_pdf():
@@ -362,17 +356,15 @@ def export_pdf():
         end = request.args.get("end_point", "").strip()
         route_points = get_preset_route(start, end)
         if not route_points:
-            route_points = load_route_file("shanghai_ningbo.json")
-            start = start or "上海"
-            end = end or "宁波"
+            route_points = read_route_data()
 
         fuel_data = {
-            "start": start,
-            "end": end,
-            "original": request.args.get("original_speed", "N/A"),
-            "optimized": request.args.get("optimized_speed", "N/A"),
+            "start": start or "未知起点",
+            "end": end or "未知终点",
+            "original": request.args.get("original_speed", "未填写"),
+            "optimized": request.args.get("optimized_speed", "未填写"),
             "distance": request.args.get("distance", str(calculate_route_distance(route_points))),
-            "saving": request.args.get("saving", "N/A")
+            "saving": request.args.get("saving", "未计算")
         }
 
         pdf_buffer = generate_route_report(route_points, fuel_data)
