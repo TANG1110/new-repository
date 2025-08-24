@@ -120,8 +120,7 @@ def calculate_route_distance(points: list) -> float:
         total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
     return round(total_km / 1.852, 2)
 
-# 优化后的地点翻译函数
-# 1. 增强translate_location函数的日志和容错性
+# 优化后的地点翻译函数（含调试日志）
 def translate_location(chinese_name):
     """优化的中文地点到英文翻译函数，添加调试日志"""
     # 记录原始输入以便调试
@@ -167,47 +166,6 @@ def translate_location(chinese_name):
     logger.warning(f"无法翻译地点: {chinese_name}")
     return chinese_name.title()
 
-# 2. 在export_pdf路由中添加日志，检查数据传递
-@app.route("/export_pdf")
-def export_pdf():
-    try:
-        start = request.args.get("start_point", "").strip()
-        end = request.args.get("end_point", "").strip()
-        
-        # 记录接收到的起点终点
-        logger.debug(f"导出PDF - 起点: {start}, 终点: {end}")
-        
-        route_points = get_preset_route(start, end)
-        if not route_points:
-            route_points = read_route_data()
-            logger.debug("使用默认航线数据")
-
-        fuel_data = {
-            "start": start or "未知起点",
-            "end": end or "未知终点",
-            "original": request.args.get("original_speed", "未填写"),
-            "optimized": request.args.get("optimized_speed", "未填写"),
-            "distance": request.args.get("distance", str(calculate_route_distance(route_points))),
-            "saving": request.args.get("saving", "未计算")
-        }
-        
-        # 记录即将传入PDF生成函数的数据
-        logger.debug(f"传入PDF的燃料数据: {fuel_data}")
-
-        pdf_buffer = generate_route_report(route_points, fuel_data)
-        response = make_response(send_file(
-            pdf_buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=f"船舶航线报告_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
-        ))
-        response.headers['Cache-Control'] = 'no-store, no-cache'
-        return response
-
-    except Exception as e:
-        logger.error(f"❌ PDF导出失败: {str(e)}")
-        return f"PDF导出失败：{str(e)}", 500
-    
 # --------------------------- PDF生成核心函数 ---------------------------
 def generate_route_report(route_points, fuel_data):
     buffer = BytesIO()
@@ -352,7 +310,7 @@ def create_app():
     app.config.from_mapping(CONFIG)
     return app
 
-# --------------------------- 路由定义 --------------------------- 
+# --------------------------- 路由定义（修正顺序 + 移除重复） --------------------------- 
 app = create_app()
 
 @app.route("/")
@@ -444,14 +402,20 @@ def fuel_saving():
     except ValueError:
         return "参数格式错误", 400
 
+# 修正：仅保留这一个 export_pdf 路由，且在 app 初始化后定义
 @app.route("/export_pdf")
 def export_pdf():
     try:
         start = request.args.get("start_point", "").strip()
         end = request.args.get("end_point", "").strip()
+        
+        # 记录接收到的起点终点（调试日志）
+        logger.debug(f"导出PDF - 起点: {start}, 终点: {end}")
+        
         route_points = get_preset_route(start, end)
         if not route_points:
             route_points = read_route_data()
+            logger.debug("使用默认航线数据")
 
         fuel_data = {
             "start": start or "未知起点",
@@ -461,6 +425,9 @@ def export_pdf():
             "distance": request.args.get("distance", str(calculate_route_distance(route_points))),
             "saving": request.args.get("saving", "未计算")
         }
+        
+        # 记录传入PDF的数据（调试日志）
+        logger.debug(f"传入PDF的燃料数据: {fuel_data}")
 
         pdf_buffer = generate_route_report(route_points, fuel_data)
         response = make_response(send_file(
@@ -476,6 +443,6 @@ def export_pdf():
         logger.error(f"❌ PDF导出失败: {str(e)}")
         return f"PDF导出失败：{str(e)}", 500
 
+# --------------------------- 应用启动 --------------------------- 
 if __name__ == "__main__":
     app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
-    
