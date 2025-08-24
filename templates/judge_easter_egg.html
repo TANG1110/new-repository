@@ -1,104 +1,53 @@
 {% extends "base.html" %}
 
-{% block title %}评委彩蛋 - 海算云帆团队{% endblock %}
-
-{% block head_css %}
-<style>
-    .egg-container {
-        width: 80%;
-        max-width: 800px;
-        margin: 40px auto;
-        padding: 30px;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .team-title {
-        text-align: center;
-        color: #0033FF;
-        font-size: 28px;
-        margin-bottom: 20px;
-    }
-
-    .info-item {
-        margin: 15px 0;
-    }
-
-    .info-label {
-        font-weight: bold;
-        color: #333;
-        font-size: 16px;
-        margin-bottom: 5px;
-    }
-
-    .info-content {
-        color: #666;
-        font-size: 14px;
-        line-height: 1.6;
-    }
-
-    .back-btn {
-        display: block;
-        width: 120px;
-        margin: 30px auto 0;
-        padding: 10px;
-        text-align: center;
-        background: #0033FF;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        transition: background 0.3s;
-    }
-
-    .back-btn:hover {
-        background: #0021aa;
-    }
-</style>
-{% endblock %}
+{% block title %}评委专属彩蛋{% endblock %}
 
 {% block content %}
-<div class="egg-container">
-    <h1 class="team-title">{{ team_info.team_name }} 团队信息</h1>
+<div
+    style="max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <!-- 彩蛋标题 -->
+    <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">🎉 评委专属区域 🎉</h1>
 
-    <div class="info-item">
-        <div class="info-label">团队成员</div>
-        <div class="info-content">
-            {% for member in team_info.members %}
-            <div>{{ member }}</div>
-            {% endfor %}
-        </div>
+    <!-- 团队信息卡片 -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">团队信息</h3>
+        <p><strong>团队名称：</strong> {{ team_info.team_name }}</p>
+        <p><strong>团队成员：</strong> {{ team_info.members|join("，") }}</p>
+        <p><strong>开发时间：</strong> {{ team_info.development_time }}</p>
     </div>
 
-    <div class="info-item">
-        <div class="info-label">项目介绍</div>
-        <div class="info-content">{{ team_info.project_intro }}</div>
+    <!-- 项目介绍 -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">项目介绍</h3>
+        <p>{{ team_info.project_intro }}</p>
     </div>
 
-    <div class="info-item">
-        <div class="info-label">技术栈</div>
-        <div class="info-content">
+    <!-- 技术栈 -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">技术栈</h3>
+        <ul style="list-style-type: disc; padding-left: 20px;">
             {% for tech in team_info.tech_stack %}
-            <span style="display:inline-block; margin:5px; padding:5px 10px; background:#f0f5ff; border-radius:4px;">{{
-                tech }}</span>
+            <li>{{ tech }}</li>
             {% endfor %}
-        </div>
+        </ul>
     </div>
 
-    <div class="info-item">
-        <div class="info-label">开发时间</div>
-        <div class="info-content">{{ team_info.development_time }}</div>
-    </div>
-
-    <div class="info-item">
-        <div class="info-label">项目成果</div>
-        <div class="info-content">
+    <!-- 完成成果 -->
+    <div style="margin-bottom: 25px;">
+        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">完成成果</h3>
+        <ul style="list-style-type: square; padding-left: 20px;">
             {% for achievement in team_info.achievements %}
-            <div>• {{ achievement }}</div>
+            <li>{{ achievement }}</li>
             {% endfor %}
-        </div>
+        </ul>
     </div>
 
-    <a href="{{ url_for('route_map') }}" class="back-btn">返回航线页面</a>
+    <!-- 返回主页按钮 -->
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="{{ url_for('route_map') }}"
+            style="display: inline-block; padding: 10px 20px; background: #2ecc71; color: white; text-decoration: none; border-radius: 4px;">
+            返回系统首页
+        </a>
+    </div>
 </div>
 {% endblock %}

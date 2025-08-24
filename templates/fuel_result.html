@@ -22,14 +22,9 @@
         <div class="action-buttons">
             <a href="{{ url_for('route_map') }}" class="btn btn-primary">返回重新计算</a>
             <a href="{{ url_for('index') }}" class="btn btn-secondary">返回首页</a>
-            <!-- 导出报告按钮：补充完整参数 -->
-            <a href="{{ url_for('export_pdf', 
-                start_point=start_point, 
-                end_point=end_point, 
-                original_speed=original, 
-                optimized_speed=optimized, 
-                distance=distance, 
-                saving=saving) }}" class="btn btn-export">导出报告</a>
+            <!-- 导出报告按钮：添加统一风格装饰 -->
+            <a href="/export_pdf?original_speed={{ original }}&optimized_speed={{ optimized }}&distance={{ distance }}&saving={{ saving }}"
+                class="btn btn-export">导出报告</a>
         </div>
     </div>
 </div>
@@ -110,6 +105,7 @@
         gap: 15px;
         justify-content: center;
         flex-wrap: wrap;
+        /* 适配小屏幕，避免按钮溢出 */
     }
 
     .btn {
@@ -118,12 +114,14 @@
         text-decoration: none;
         font-size: 14px;
         font-weight: 500;
+        /* 统一字体粗细 */
         transition: all 0.3s ease;
         cursor: pointer;
         border: none;
         display: inline-block;
     }
 
+    /* 主按钮：返回重新计算 */
     .btn-primary {
         background-color: #1a5f7a;
         color: white;
@@ -133,8 +131,10 @@
         background-color: #144a63;
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(20, 74, 99, 0.3);
+        /* hover 阴影增强 */
     }
 
+    /* 次要按钮：返回首页 */
     .btn-secondary {
         background-color: #555555;
         color: white;
@@ -146,15 +146,20 @@
         box-shadow: 0 4px 8px rgba(51, 51, 51, 0.3);
     }
 
+    /* 导出按钮：新增统一风格，用蓝色系区分功能（与主色调呼应） */
     .btn-export {
         background-color: #2196F3;
+        /* 蓝色系，与系统主色调协调 */
         color: white;
     }
 
     .btn-export:hover {
         background-color: #0b7dda;
+        /* hover 加深色 */
         transform: translateY(-2px);
+        /* 统一悬浮上移动效 */
         box-shadow: 0 4px 8px rgba(11, 125, 218, 0.3);
+        /* 统一 hover 阴影 */
     }
 </style>
 {% endblock %}
