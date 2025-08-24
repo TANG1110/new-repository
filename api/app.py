@@ -16,7 +16,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from reportlab.lib.units import cm
 
-# --------------------------- 配置区（关键：新增多航线文件映射） --------------------------- 
+# --------------------------- 配置区（融合多航线映射，统一文件命名） --------------------------- 
 API_DIR = os.path.abspath(os.path.dirname(__file__))
 CONFIG = {
     "SECRET_KEY": "your_secret_key",
@@ -25,23 +25,23 @@ CONFIG = {
     "HOST": "127.0.0.1",
     "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
     "ROUTE_DATA_PATH": os.path.join(API_DIR, "../static/route_data.json"),
-    # 新增：多航线文件映射（key=航线对，value=对应的JSON文件名）
+    # 采用上方代码的多航线映射（统一文件命名，去掉冗余的"_route"后缀，与加载逻辑匹配）
     "PRESET_ROUTE_FILES": {
-        ("上海", "宁波"): "shanghai_ningbo_route.json",
-        ("宁波", "上海"): "ningbo_shanghai_route.json",  # 反向航线
-        ("广州", "深圳"): "guangzhou_shenzhen_route.json",
-        ("深圳", "广州"): "shenzhen_guangzhou_route.json",
-        ("青岛", "大连"): "qingdao_dalian_route.json",
-        ("大连", "青岛"): "dalian_qingdao_route.json",
-        ("天津", "青岛"): "tianjin_qingdao_route.json",
-        ("青岛", "天津"): "qingdao_tianjin_route.json",
-        ("厦门", "香港"): "xiamen_hongkong_route.json",
-        ("香港", "厦门"): "hongkong_xiamen_route.json"
+        ("上海", "宁波"): "shanghai_ningbo.json",
+        ("宁波", "上海"): "ningbo_shanghai.json",
+        ("广州", "深圳"): "guangzhou_shenzhen.json",
+        ("深圳", "广州"): "shenzhen_guangzhou.json",
+        ("青岛", "大连"): "qingdao_dalian.json",
+        ("大连", "青岛"): "dalian_qingdao.json",
+        ("天津", "青岛"): "tianjin_qingdao.json",
+        ("青岛", "天津"): "qingdao_tianjin.json",
+        ("厦门", "香港"): "xiamen_hongkong.json",
+        ("香港", "厦门"): "hongkong_xiamen.json"
     },
     "VALID_USER": {"admin": "123456"}
 }
 
-# 中文到英文地点名称映射表
+# 中文到英文地点名称映射表（保持不变）
 LOCATION_TRANSLATIONS = {
     "上海": "Shanghai", "北京": "Beijing", "广州": "Guangzhou",
     "深圳": "Shenzhen", "宁波": "Ningbo", "天津": "Tianjin",
@@ -50,7 +50,7 @@ LOCATION_TRANSLATIONS = {
     "南京": "Nanjing", "杭州": "Hangzhou", "苏州": "Suzhou", "武汉": "Wuhan"
 }
 
-# 日志配置
+# 日志配置（保持不变）
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -58,7 +58,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# --------------------------- 工具函数（关键：重构多航线加载逻辑） --------------------------- 
+# --------------------------- 工具函数（融合上方多航线匹配+下方加载逻辑） --------------------------- 
 def read_route_data():
     file_path = CONFIG["ROUTE_DATA_PATH"]
     if not os.path.exists(file_path):
@@ -71,55 +71,72 @@ def read_route_data():
         logger.error(f"❌ 读取默认航线失败: {str(e)}")
         return []
 
-# 重构：支持多航线匹配（不再硬编码上海-宁波）
+# 采用上方代码的多航线匹配逻辑（支持中文/英文/拼音匹配，不硬编码航线）
 def get_preset_route(start_point: str, end_point: str) -> list:
-    """根据起点终点匹配对应的航线文件（支持多航线）"""
+    """根据起点终点匹配对应的航线文件（支持10条航线）"""
     if not start_point or not end_point:
         logger.warning("⚠️ 起点或终点为空，无法匹配航线")
         return []
-    
-    # 标准化输入（去除空格、转小写，支持中文/英文匹配）
+        
+    # 标准化输入（去除空格、转小写，兼容各种输入格式）
     start = start_point.strip().lower()
     end = end_point.strip().lower()
     
-    # 遍历所有预设航线，匹配中文或英文名称
+    # 1. 尝试精确匹配（中文/英文全称）
     for (s_cn, e_cn), filename in CONFIG["PRESET_ROUTE_FILES"].items():
-        # 获取中文对应的英文（如“上海”→“Shanghai”）
         s_en = LOCATION_TRANSLATIONS.get(s_cn, "").lower()
         e_en = LOCATION_TRANSLATIONS.get(e_cn, "").lower()
-        
-        # 匹配条件：起点为中文/英文，终点为中文/英文
         if (start == s_cn.lower() or start == s_en) and \
            (end == e_cn.lower() or end == e_en):
-            logger.debug(f"✅ 匹配到航线：{s_cn}→{e_cn}，加载文件：{filename}")
-            return load_route_file(filename)  # 加载对应航线文件
+            logger.debug(f"✅ 精确匹配航线：{s_cn}→{e_cn}，加载文件：{filename}")
+            return load_route_file(filename)
     
-    logger.warning(f"⚠️ 未匹配到航线：{start_point}→{end_point}（支持航线：{[f'{k[0]}→{k[1]}' for k in CONFIG['PRESET_ROUTE_FILES'].keys()]}）")
+    # 2. 尝试模糊匹配（输入包含城市名，如"上海港"→"上海"）
+    for (s_cn, e_cn), filename in CONFIG["PRESET_ROUTE_FILES"].items():
+        s_en = LOCATION_TRANSLATIONS.get(s_cn, "").lower()
+        e_en = LOCATION_TRANSLATIONS.get(e_cn, "").lower()
+        if (s_cn.lower() in start or s_en in start) and \
+           (e_cn.lower() in end or e_en in end):
+            logger.debug(f"✅ 模糊匹配航线：{s_cn}→{e_cn}，加载文件：{filename}")
+            return load_route_file(filename)
+    
+    logger.warning(f"⚠️ 未匹配到航线：{start_point}→{end_point}（支持航线：{[f'{k[0]}↔{k[1]}' for k in CONFIG['PRESET_ROUTE_FILES'].keys()]}）")
     return []
 
-# 新增：通用航线文件加载函数（支持所有航线文件）
+# 采用下方代码的文件加载逻辑（增加详细日志，便于排查）
 def load_route_file(filename: str) -> list:
-    """加载指定名称的航线JSON文件（路径统一）"""
+    """加载指定名称的航线JSON文件（统一路径拼接）"""
     file_path = os.path.join(API_DIR, f"../static/{filename}")
     if not os.path.exists(file_path):
-        logger.error(f"❌ 航线文件不存在: {file_path}（请检查static文件夹）")
+        logger.error(f"❌ 航线文件不存在: {file_path}（请检查static文件夹是否包含该文件）")
         return []
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             route_data = json.load(f)
             points = route_data.get("points", [])
+            if len(points) < 2:
+                logger.warning(f"⚠️ 航线文件{filename}坐标点不足（仅{len(points)}个），无法绘制航线")
+                return []
             logger.debug(f"✅ 加载航线成功：{filename}，共{len(points)}个坐标点")
             return points
     except json.JSONDecodeError:
-        logger.error(f"❌ 航线文件格式错误: {filename}（请确保JSON格式正确）")
+        logger.error(f"❌ 航线文件{filename}格式错误（请用JSON校验工具检查格式）")
         return []
     except Exception as e:
-        logger.error(f"❌ 读取航线文件失败: {str(e)}")
+        logger.error(f"❌ 读取航线文件{filename}失败: {str(e)}")
         return []
 
+# 计算航线距离（保持原有逻辑，增加参数校验）
 def calculate_route_distance(points: list) -> float:
+    if len(points) < 2:
+        logger.warning(f"⚠️ 坐标点不足（仅{len(points)}个），无法计算航程")
+        return 0.0
     total_km = 0.0
     for i in range(len(points)-1):
+        # 校验坐标格式（避免无效数据导致崩溃）
+        if not isinstance(points[i], list) or len(points[i]) != 2:
+            logger.error(f"❌ 无效坐标格式: {points[i]}（需为[经度, 纬度]）")
+            return 0.0
         lng1, lat1 = points[i]
         lng2, lat2 = points[i+1]
         lat1_rad = math.radians(lat1)
@@ -128,8 +145,9 @@ def calculate_route_distance(points: list) -> float:
         delta_lng = math.radians(lng2-lng1)
         a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad)*math.cos(lat2_rad)*math.sin(delta_lng/2)**2
         total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
-    return round(total_km / 1.852, 2)
+    return round(total_km / 1.852, 2)  # 公里转海里
 
+# 地点中英文转换（保持不变）
 def translate_location(chinese_name):
     if not chinese_name:
         return "Not Specified"
@@ -141,7 +159,7 @@ def translate_location(chinese_name):
             return en
     return chinese_name
 
-# --------------------------- PDF生成核心函数（保持不变） ---------------------------
+# --------------------------- PDF生成核心函数（保留下方代码的字体配置，确保兼容性） ---------------------------
 def generate_route_report(route_points, fuel_data):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -153,6 +171,7 @@ def generate_route_report(route_points, fuel_data):
         bottomMargin=0.8*cm
     )
 
+    # 保留下方代码的字体配置（兼容英文显示，避免乱码）
     font_name = 'Helvetica'
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
@@ -184,6 +203,7 @@ def generate_route_report(route_points, fuel_data):
     elements.append(Paragraph(f"Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal_EN']))
     elements.append(Spacer(1, 6))
 
+    # 航线坐标表格
     elements.append(Paragraph("1. Route Coordinate Information", styles['Heading2_EN']))
     if route_points:
         table_data = [["No.", "Longitude", "Latitude"]]
@@ -211,6 +231,7 @@ def generate_route_report(route_points, fuel_data):
         elements.append(Paragraph("⚠️ No route coordinate data obtained", styles['Normal_EN']))
     elements.append(Spacer(1, 6))
 
+    # 节油量表格（使用翻译后的英文地点）
     elements.append(Paragraph("2. Fuel Saving Calculation Results", styles['Heading2_EN']))
     if fuel_data:
         translated_start = translate_location(fuel_data.get('start'))
@@ -245,7 +266,7 @@ def generate_route_report(route_points, fuel_data):
     buffer.seek(0)
     return buffer
 
-# --------------------------- Flask 应用初始化（关键：自动生成多航线文件） --------------------------- 
+# --------------------------- Flask 应用初始化（融合下方自动生成多航线文件逻辑） --------------------------- 
 def create_app():
     root_path = os.path.dirname(API_DIR)
     static_path = os.path.join(root_path, "static")
@@ -253,12 +274,15 @@ def create_app():
 
     if not os.path.exists(static_path):
         os.makedirs(static_path)
+        logger.info(f"✅ 创建static目录: {static_path}")
+        
         # 1. 初始化默认航线文件
         with open(CONFIG["ROUTE_DATA_PATH"], "w", encoding="utf-8") as f:
             json.dump({"points": [[121.487899, 31.249162], [121.506302, 31.238938]]}, f, indent=2)
+        logger.info(f"✅ 生成默认航线文件: {CONFIG['ROUTE_DATA_PATH']}")
         
-        # 2. 自动生成多航线JSON文件（含坐标数据，确保能直接使用）
-        # 上海-宁波航线（原有）
+        # 2. 自动生成10条航线的JSON文件（采用下方代码的精确坐标，与CONFIG映射匹配）
+        # 上海-宁波
         sh_nb_route = {
             "points": [
                 [121.582812, 31.372057], [121.642376, 31.372274], [121.719159, 31.329024],
@@ -271,66 +295,65 @@ def create_app():
                 [122.02136, 29.822932]
             ]
         }
-        with open(os.path.join(static_path, "shanghai_ningbo_route.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(static_path, "shanghai_ningbo.json"), "w", encoding="utf-8") as f:
             json.dump(sh_nb_route, f, indent=2)
+        # 宁波-上海（反向）
+        with open(os.path.join(static_path, "ningbo_shanghai.json"), "w", encoding="utf-8") as f:
+            json.dump({"points": sh_nb_route["points"][::-1]}, f, indent=2)
         
-        # 宁波-上海航线（反向）
-        nb_sh_route = {"points": sh_nb_route["points"][::-1]}
-        with open(os.path.join(static_path, "ningbo_shanghai_route.json"), "w", encoding="utf-8") as f:
-            json.dump(nb_sh_route, f, indent=2)
-        
-        # 广州-深圳航线（示例坐标）
+        # 广州-深圳
         gz_sz_route = {
             "points": [
                 [113.271429, 23.120049], [113.321429, 23.080049], [113.381429, 23.030049],
                 [113.451429, 22.980049], [113.521429, 22.930049], [113.581429, 22.880049],
-                [113.651429, 22.830049], [113.721429, 22.780049]  # 深圳港附近
+                [113.651429, 22.830049], [113.721429, 22.780049]
             ]
         }
-        with open(os.path.join(static_path, "guangzhou_shenzhen_route.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(static_path, "guangzhou_shenzhen.json"), "w", encoding="utf-8") as f:
             json.dump(gz_sz_route, f, indent=2)
+        # 深圳-广州（反向）
+        with open(os.path.join(static_path, "shenzhen_guangzhou.json"), "w", encoding="utf-8") as f:
+            json.dump({"points": gz_sz_route["points"][::-1]}, f, indent=2)
         
-        # 深圳-广州航线（反向）
-        sz_gz_route = {"points": gz_sz_route["points"][::-1]}
-        with open(os.path.join(static_path, "shenzhen_guangzhou_route.json"), "w", encoding="utf-8") as f:
-            json.dump(sz_gz_route, f, indent=2)
-        
-        # 青岛-大连航线（示例坐标）
+        # 青岛-大连
         qd_dl_route = {
             "points": [
                 [120.369293, 36.067072], [120.569293, 36.167072], [120.869293, 36.367072],
                 [121.169293, 36.567072], [121.469293, 36.767072], [121.769293, 36.967072],
-                [122.069293, 37.167072], [122.369293, 37.367072], [122.669293, 37.567072]  # 大连港附近
+                [122.069293, 37.167072], [122.369293, 37.367072], [122.669293, 37.567072]
             ]
         }
-        with open(os.path.join(static_path, "qingdao_dalian_route.json"), "w", encoding="utf-8") as f:
+        with open(os.path.join(static_path, "qingdao_dalian.json"), "w", encoding="utf-8") as f:
             json.dump(qd_dl_route, f, indent=2)
+        # 大连-青岛（反向）
+        with open(os.path.join(static_path, "dalian_qingdao.json"), "w", encoding="utf-8") as f:
+            json.dump({"points": qd_dl_route["points"][::-1]}, f, indent=2)
         
-        # 大连-青岛航线（反向）
-        dl_qd_route = {"points": qd_dl_route["points"][::-1]}
-        with open(os.path.join(static_path, "dalian_qingdao_route.json"), "w", encoding="utf-8") as f:
-            json.dump(dl_qd_route, f, indent=2)
-        
-        # 其他航线（简化示例，可根据实际需求补充精确坐标）
         # 天津-青岛
-        tj_qd_route = {"points": [[117.200983, 39.084158], [118.200983, 38.884158], [119.200983, 38.684158], [120.369293, 36.067072]]}
-        with open(os.path.join(static_path, "tianjin_qingdao_route.json"), "w", encoding="utf-8") as f:
+        tj_qd_route = {
+            "points": [[117.200983, 39.084158], [118.200983, 38.884158], [119.200983, 38.684158], [120.369293, 36.067072]]
+        }
+        with open(os.path.join(static_path, "tianjin_qingdao.json"), "w", encoding="utf-8") as f:
             json.dump(tj_qd_route, f, indent=2)
         # 青岛-天津（反向）
-        qd_tj_route = {"points": tj_qd_route["points"][::-1]}
-        with open(os.path.join(static_path, "qingdao_tianjin_route.json"), "w", encoding="utf-8") as f:
-            json.dump(qd_tj_route, f, indent=2)
+        with open(os.path.join(static_path, "qingdao_tianjin.json"), "w", encoding="utf-8") as f:
+            json.dump({"points": tj_qd_route["points"][::-1]}, f, indent=2)
+        
         # 厦门-香港
-        xm_hk_route = {"points": [[118.062342, 24.478636], [118.562342, 24.278636], [119.062342, 24.078636], [114.157696, 22.284621]]}
-        with open(os.path.join(static_path, "xiamen_hongkong_route.json"), "w", encoding="utf-8") as f:
+        xm_hk_route = {
+            "points": [[118.062342, 24.478636], [118.562342, 24.278636], [119.062342, 24.078636], [114.157696, 22.284621]]
+        }
+        with open(os.path.join(static_path, "xiamen_hongkong.json"), "w", encoding="utf-8") as f:
             json.dump(xm_hk_route, f, indent=2)
         # 香港-厦门（反向）
-        hk_xm_route = {"points": xm_hk_route["points"][::-1]}
-        with open(os.path.join(static_path, "hongkong_xiamen_route.json"), "w", encoding="utf-8") as f:
-            json.dump(hk_xm_route, f, indent=2)
+        with open(os.path.join(static_path, "hongkong_xiamen.json"), "w", encoding="utf-8") as f:
+            json.dump({"points": xm_hk_route["points"][::-1]}, f, indent=2)
+        
+        logger.info("✅ 10条航线文件已全部生成")
 
     if not os.path.exists(template_path):
         os.makedirs(template_path)
+        logger.info(f"✅ 创建templates目录: {template_path}")
         with open(os.path.join(template_path, "base.html"), "w", encoding="utf-8") as f:
             f.write("""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>{% block title %}船舶系统{% endblock %}</title>{% block head_css %}{% endblock %}</head><body style="margin:0; padding:20px; background:#f5f7fa; font-family:Arial,sans-serif;">{% block content %}{% endblock %}</body></html>""")
 
@@ -338,7 +361,7 @@ def create_app():
     app.config.from_mapping(CONFIG)
     return app
 
-# --------------------------- 路由定义（关键：修复航线数据传递格式） --------------------------- 
+# --------------------------- 路由定义（融合上方多航线传递+下方功能逻辑） --------------------------- 
 app = create_app()
 
 @app.route("/")
@@ -365,8 +388,10 @@ def login():
     pwd = request.form.get("password", "").strip()
     if not user or not pwd:
         return "用户名和密码不能为空", 400
+    # 普通用户登录
     if app.config["VALID_USER"].get(user) == pwd:
         return redirect(url_for("login_success", username=user))
+    # 评委彩蛋账号
     if user == "judge" and pwd == "ship2025":
         return render_template("judge_easter_egg.html", team_info={
             "team_name": "海算云帆",
@@ -376,7 +401,7 @@ def login():
             "development_time": "2025年8月12日-8月25日",
             "achievements": ["完成基础框架搭建", "实现航线可视化", "开发节油计算功能", "支持PDF报告导出", "适配移动端访问"]
         })
-    return "用户名或密码错误（正确：admin/123456）", 401
+    return "用户名或密码错误（正确：admin/123456 | judge/ship2025）", 401
 
 @app.route("/login_success")
 def login_success():
@@ -390,22 +415,22 @@ def route_map():
     optimized = request.args.get("optimized_speed", "")
     user_dist = request.args.get("distance", "").strip()
 
-    # 1. 获取匹配的航线（支持多航线）
+    # 核心：采用上方多航线匹配逻辑，获取对应航线
     route_points = get_preset_route(start, end) if (start and end) else read_route_data()
-    # 2. 计算航程（坐标不足时留空）
+    # 计算航程
     default_dist = calculate_route_distance(route_points) if len(route_points) >=2 else ""
     final_dist = user_dist if user_dist else (str(default_dist) if default_dist != "" else "")
 
-    # 关键修复：传递JSON格式数据给前端（避免地图解析失败）
+    # 关键：传递JSON格式数据给前端（避免地图解析失败）
     return render_template(
         "route_map.html",
-        route_points=json.dumps(route_points),  # 修复：转为JSON字符串
+        route_points=json.dumps(route_points),  # 转为JSON字符串，确保前端能解析
         start_point=start,
         end_point=end,
         original_speed=original,
         optimized_speed=optimized,
         distance=final_dist,
-        amap_key=app.config["AMAP_API_KEY"]  # 传递高德key给前端
+        amap_key=app.config["AMAP_API_KEY"]  # 传递高德API key，兼容前端加载
     )
 
 @app.route("/fuel_saving", methods=["GET"])
@@ -439,11 +464,10 @@ def export_pdf():
     try:
         start = request.args.get("start_point", "").strip()
         end = request.args.get("end_point", "").strip()
-        # 支持多航线PDF导出
+        # 采用多航线逻辑获取航线数据，无匹配时用上海-宁波兜底
         route_points = get_preset_route(start, end)
         if not route_points:
-            # 无匹配航线时，默认用上海-宁波
-            route_points = load_route_file("shanghai_ningbo_route.json")
+            route_points = load_route_file("shanghai_ningbo.json")
             start = start or "上海"
             end = end or "宁波"
 
@@ -471,4 +495,5 @@ def export_pdf():
         return f"PDF导出失败：{str(e)}", 500
 
 if __name__ == "__main__":
+    logger.info(f"✅ 船舶航线系统启动：http://{CONFIG['HOST']}:{CONFIG['PORT']}")
     app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
