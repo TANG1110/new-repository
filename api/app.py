@@ -5,7 +5,8 @@ import logging
 import math
 from io import BytesIO
 from datetime import datetime
-from flask import Flask, request, render_template, redirect, url_for, make_response, send_file
+from flask import Flask, request, render_template, redirect, url_for, make_response, send_file, session
+
 # PDF生成相关库
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -19,7 +20,7 @@ from reportlab.lib.units import cm
 # --------------------------- 配置区 --------------------------- 
 API_DIR = os.path.abspath(os.path.dirname(__file__))
 CONFIG = {
-    "SECRET_KEY": "your_secret_key",
+    "SECRET_KEY": "your_secret_key",  # 用于session存储
     "DEBUG": True,
     "PORT": int(os.environ.get("PORT", 5001)),
     "HOST": "127.0.0.1",
@@ -310,7 +311,7 @@ def create_app():
     app.config.from_mapping(CONFIG)
     return app
 
-# --------------------------- 路由定义（修正顺序 + 移除重复） --------------------------- 
+# --------------------------- 路由定义 --------------------------- 
 app = create_app()
 
 @app.route("/")
@@ -338,8 +339,11 @@ def login():
     if not user or not pwd:
         return "用户名和密码不能为空", 400
     if app.config["VALID_USER"].get(user) == pwd:
+        # 登录成功时初始化session
+        session['username'] = user
         return redirect(url_for("login_success", username=user))
     if user == "judge" and pwd == "ship2025":
+        session['username'] = user
         return render_template("judge_easter_egg.html", team_info={
             "team_name": "海算云帆",
             "members": ["陈倚薇（队长/计算机组）", "刘迪瑶（计算机组）", "唐辉婷（计算机组）","吴珊（金融组）","周子煜（设计组）"],
@@ -361,6 +365,11 @@ def route_map():
     original = request.args.get("original_speed", "")
     optimized = request.args.get("optimized_speed", "")
     user_dist = request.args.get("distance", "")
+
+    # 保存起点终点到session，作为备份
+    if start and end:
+        session['last_start'] = start
+        session['last_end'] = end
 
     route_points = get_preset_route(start, end) if (start and end) else read_route_data()
     default_dist = calculate_route_distance(route_points)
@@ -390,6 +399,12 @@ def fuel_saving():
         if original <=0 or optimized <=0 or dist <=0 or optimized >= original:
             return "参数错误（优化航速需小于原航速）", 400
         saving = round((original - optimized) * dist * 0.8, 2)
+        
+        # 保存起点终点到session，作为备份
+        if start and end:
+            session['last_start'] = start
+            session['last_end'] = end
+            
         return render_template(
             "fuel_result.html",
             start_point=start,
@@ -402,14 +417,27 @@ def fuel_saving():
     except ValueError:
         return "参数格式错误", 400
 
-# 修正：仅保留这一个 export_pdf 路由，且在 app 初始化后定义
 @app.route("/export_pdf")
 def export_pdf():
     try:
+        # 1. 获取起点终点参数
         start = request.args.get("start_point", "").strip()
         end = request.args.get("end_point", "").strip()
         
-        # 记录接收到的起点终点（调试日志）
+        # 2. 参数验证与备份获取
+        if not start or not end:
+            # 从session获取最近一次的起点终点
+            start = session.get("last_start", start)
+            end = session.get("last_end", end)
+            logger.warning(f"参数不完整，尝试从session获取: start={start}, end={end}")
+        
+        # 3. 再次检查，确保有可用值
+        if not start or not end:
+            error_msg = "无法获取起点和终点信息，请先设置航线再导出报告"
+            logger.error(error_msg)
+            return error_msg, 400
+        
+        # 4. 记录接收到的起点终点（调试日志）
         logger.debug(f"导出PDF - 起点: {start}, 终点: {end}")
         
         route_points = get_preset_route(start, end)
@@ -418,15 +446,15 @@ def export_pdf():
             logger.debug("使用默认航线数据")
 
         fuel_data = {
-            "start": start or "未知起点",
-            "end": end or "未知终点",
+            "start": start,
+            "end": end,
             "original": request.args.get("original_speed", "未填写"),
             "optimized": request.args.get("optimized_speed", "未填写"),
             "distance": request.args.get("distance", str(calculate_route_distance(route_points))),
             "saving": request.args.get("saving", "未计算")
         }
         
-        # 记录传入PDF的数据（调试日志）
+        # 5. 记录传入PDF的数据（调试日志）
         logger.debug(f"传入PDF的燃料数据: {fuel_data}")
 
         pdf_buffer = generate_route_report(route_points, fuel_data)

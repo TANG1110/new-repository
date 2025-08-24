@@ -23,7 +23,7 @@
             <a href="{{ url_for('route_map') }}" class="btn btn-primary">返回重新计算</a>
             <a href="{{ url_for('index') }}" class="btn btn-secondary">返回首页</a>
             <!-- 导出报告按钮：添加统一风格装饰 -->
-            <a href="/export_pdf?original_speed={{ original }}&optimized_speed={{ optimized }}&distance={{ distance }}&saving={{ saving }}"
+            <a href="/export_pdf?start_point={{ start_point }}&end_point={{ end_point }}&original_speed={{ original }}&optimized_speed={{ optimized }}&distance={{ distance }}&saving={{ saving }}"
                 class="btn btn-export">导出报告</a>
         </div>
     </div>
