@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}船舶航线与节油计算系统{% endblock %} <!-- 保留优化标题 -->
+{% block title %}船舶航线与节油计算系统{% endblock %}
 
 {% block head_css %}
 <style>
@@ -79,7 +79,6 @@
         font-style: italic;
     }
 
-    /* 未输入起点终点时的提示 */
     .map-tip {
         position: absolute;
         top: 50%;
@@ -95,7 +94,6 @@
         font-size: 16px;
     }
 
-    /* 航线信息提示 */
     .route-info {
         text-align: center;
         margin: 10px 0;
@@ -107,7 +105,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- 保留优化标题，精准体现核心功能 -->
 <h1 class="page-title">船舶航线与节油计算系统</h1>
 
 <!-- 参数输入区域 -->
@@ -144,7 +141,7 @@
     </form>
 </div>
 
-<!-- 节油量计算表单（无PDF导出按钮） -->
+<!-- 节油量计算表单 -->
 <div class="param-container">
     <h3>节油量计算</h3>
     <form action="{{ url_for('fuel_saving') }}" method="get" class="calc-form">
@@ -162,8 +159,9 @@
         </div>
         <div class="form-group">
             <label>航程（海里）</label>
-            <input type="number" name="distance" step="0.1" required value="{{ distance if distance else '' }}"
-                placeholder="例如：130">
+            <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
+                placeholder="自动计算">
+            <div class="info-text">上海-宁波航线留空将自动计算</div>
         </div>
         <div>
             <button type="submit">计算节油量</button>
@@ -187,7 +185,7 @@
 <script>
     window.onload = function () {
         try {
-            // 安全解析航线数据
+            // 解析航线数据
             let routePoints = [];
             const rawData = '{{ route_points|tojson|safe }}';
             if (rawData && rawData !== 'null' && rawData !== 'undefined') {
