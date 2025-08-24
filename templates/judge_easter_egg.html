@@ -1,77 +1,99 @@
-{% extends "base.html" %}
+from flask import Flask, render_template, request, redirect, url_for, make_response, send_file
+import math
+from io import BytesIO
+from datetime import datetime
+import os
 
-{% block title %}评委专页 - 船舶航线系统{% endblock %}
+# 确保中文显示正常
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]
 
-{% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="text-center mb-10">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-            <i class="fa fa-trophy text-2xl text-primary"></i>
-        </div>
-        <h1 class="text-2xl font-bold text-primary mb-2">{{ team_info.team_name }} 团队信息</h1>
-        <p class="text-neutral">船舶航线与节油计算系统 - 项目详情</p>
-    </div>
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'ship_route_visualization'
+app.config['AMAP_KEY'] = '1389a7514ce65016496e0ee1349282b7' # 测试可用的高德地图API密钥
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- 项目介绍卡片 -->
-        <div class="bg-white rounded-xl shadow-soft p-6 col-span-1 lg:col-span-2">
-            <h2 class="text-xl font-semibold mb-4 flex items-center">
-                <i class="fa fa-book text-primary mr-2"></i>项目介绍
-            </h2>
-            <p class="text-gray-700 leading-relaxed">{{ team_info.project_intro }}</p>
+# 上海-宁波航线坐标点（精确到港口）
+SHANGHAI_NINGBO_ROUTE = [
+[121.507812, 31.237057], # 上海港
+[121.552376, 31.202274],
+[121.837651, 31.051066],
+[121.901726, 30.96938],
+[122.0377, 31.2511],
+[122.1017, 31.0694],
+[122.2018, 30.6292],
+[122.1130, 30.4422],
+[121.8909, 30.4252],
+[121.8193, 30.2694],
+[121.6996, 30.1643],
+[121.8544, 29.9572],
+[121.9528, 29.9771],
+[122.0262, 29.9258],
+[122.1683, 29.9293],
+[122.1509, 29.8670],
+[122.0214, 29.8229] # 宁波港
+]
 
-            <h2 class="text-xl font-semibold mt-6 mb-4 flex items-center">
-                <i class="fa fa-calendar text-primary mr-2"></i>开发时间
-            </h2>
-            <p class="text-gray-700">{{ team_info.development_time }}</p>
+# 预设航线数据
+ROUTE_DATA = {
+"上海-宁波": SHANGHAI_NINGBO_ROUTE,
+"宁波-上海": SHANGHAI_NINGBO_ROUTE[::-1] # 反向航线
+}
 
-            <h2 class="text-xl font-semibold mt-6 mb-4 flex items-center">
-                <i class="fa fa-star text-primary mr-2"></i>项目成果
-            </h2>
-            <ul class="space-y-2 text-gray-700">
-                {% for achievement in team_info.achievements %}
-                <li class="flex items-start">
-                    <i class="fa fa-check-circle text-green-500 mt-1 mr-2"></i>
-                    <span>{{ achievement }}</span>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
+# 计算两点间距离（海里）
+def haversine_distance(lat1, lon1, lat2, lon2):
+R = 6371 # 地球半径（公里）
+dLat = math.radians(lat2 - lat1)
+dLon = math.radians(lon2 - lon1)
+a = math.sin(dLat/2) * math.sin(dLat/2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon/2)
+* math.sin(dLon/2)
+c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+km = R * c
+return km / 1.852 # 转换为海里
 
-        <!-- 团队信息卡片 -->
-        <div class="bg-white rounded-xl shadow-soft p-6">
-            <h2 class="text-xl font-semibold mb-4 flex items-center">
-                <i class="fa fa-users text-primary mr-2"></i>团队成员
-            </h2>
-            <ul class="space-y-3 mb-6">
-                {% for member in team_info.members %}
-                <li class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-bg">
-                    <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mr-3">
-                        <i class="fa fa-user text-primary text-sm"></i>
-                    </div>
-                    <span>{{ member }}</span>
-                </li>
-                {% endfor %}
-            </ul>
+# 计算总航程
+def calculate_total_distance(points):
+total = 0.0
+for i in range(len(points)-1):
+lat1, lon1 = points[i][1], points[i][0]
+lat2, lon2 = points[i+1][1], points[i+1][0]
+total += haversine_distance(lat1, lon1, lat2, lon2)
+return round(total, 2)
 
-            <h2 class="text-xl font-semibold mb-4 flex items-center">
-                <i class="fa fa-code text-primary mr-2"></i>技术栈
-            </h2>
-            <div class="flex flex-wrap gap-2">
-                {% for tech in team_info.tech_stack %}
-                <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                    {{ tech }}
-                </span>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
+# 登录页面
+@app.route('/', methods=['GET', 'POST'])
+def login():
+if request.method == 'POST':
+username = request.form.get('username')
+password = request.form.get('password')
+# 简单验证
+if username == 'admin' and password == '123456':
+return redirect(url_for('route_map', start='上海', end='宁波'))
+return render_template('login.html', error='用户名或密码错误（正确：admin/123456）')
+return render_template('login.html')
 
-    <div class="text-center">
-        <a href="{{ url_for('route_map') }}"
-            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90 transition duration-150 ease-in-out shadow-sm">
-            <i class="fa fa-ship mr-2"></i>返回系统首页
-        </a>
-    </div>
-</div>
-{% endblock %}
+# 航线地图页面（核心）
+@app.route('/route_map')
+def route_map():
+start = request.args.get('start', '上海')
+end = request.args.get('end', '宁波')
+route_key = f"{start}-{end}"
+
+# 获取航线数据
+route_points = ROUTE_DATA.get(route_key, [])
+distance = calculate_total_distance(route_points) if route_points else 0
+
+return render_template('route_map.html',
+start=start,
+end=end,
+route_points=route_points,
+distance=distance,
+amap_key=app.config['AMAP_KEY'])
+
+# 确保templates目录存在
+if not os.path.exists('templates'):
+os.makedirs('templates')
+
+if __name__ == '__main__':
+app.run(host='0.0.0.0', port=5000, debug=True)

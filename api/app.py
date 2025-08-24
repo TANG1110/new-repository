@@ -6,8 +6,6 @@ import math
 from io import BytesIO
 from datetime import datetime
 from flask import Flask, request, render_template, redirect, url_for, make_response, send_file
-from flask_cors import CORS
-
 # PDF生成相关库
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -15,90 +13,41 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
 
-# --------------------------- 配置与初始化 --------------------------- 
+# --------------------------- 配置区 --------------------------- 
 API_DIR = os.path.abspath(os.path.dirname(__file__))
-
-# 修复上海-宁波航线坐标数据（更精确的坐标点）
-ALL_PRESET_ROUTES = {
-    ("上海", "宁波"): {
-        "filename": "shanghai_ningbo.json",
-        "points": [
-            [121.507812, 31.237057],  # 上海港
-            [121.552376, 31.202274],
-            [121.619159, 31.159024],
-            [121.688468, 31.107377],
-            [121.752846, 31.086428],
-            [121.837651, 31.051066],
-            [121.901726, 30.96938],
-            [121.981797, 30.729212],
-            [122.01298,  30.542215],
-            [121.99094,  30.455198],
-            [121.859322, 30.369414],
-            [121.78957,  30.264341],
-            [121.824434, 30.157196],
-            [121.854434, 30.057196],
-            [121.890951, 29.984561],
-            [121.932784, 29.967126],
-            [121.98619,  29.935834],
-            [122.029602, 29.891468],
-            [121.998266, 29.859254],
-            [121.976948, 29.837783],
-            [121.880901, 29.816987],
-            [121.81136,  29.802932]   # 宁波港
-        ]
-    },
-    ("宁波", "上海"): {
-        "filename": "ningbo_shanghai.json",
-        "points": [
-            [121.81136,  29.802932],   # 宁波港
-            [121.880901, 29.816987],
-            [121.976948, 29.837783],
-            [121.998266, 29.859254],
-            [122.029602, 29.891468],
-            [121.98619,  29.935834],
-            [121.932784, 29.967126],
-            [121.890951, 29.984561],
-            [121.854434, 30.057196],
-            [121.824434, 30.157196],
-            [121.78957,  30.264341],
-            [121.859322, 30.369414],
-            [121.99094,  30.455198],
-            [122.01298,  30.542215],
-            [121.981797, 30.729212],
-            [121.901726, 30.96938],
-            [121.837651, 31.051066],
-            [121.752846, 31.086428],
-            [121.688468, 31.107377],
-            [121.619159, 31.159024],
-            [121.552376, 31.202274],
-            [121.507812, 31.237057]   # 上海港
-        ]
-    },
-    # 其他航线保持不变...
-    ("广州", "深圳"): {
-        "filename": "guangzhou_shenzhen.json",
-        "points": [[113.264434, 23.129162], [113.548813, 22.906414], [114.057868, 22.543096]]
-    }
-}
-
-# 系统配置
 CONFIG = {
     "SECRET_KEY": "your_secret_key",
     "DEBUG": True,
     "PORT": int(os.environ.get("PORT", 5001)),
     "HOST": "127.0.0.1",
-    "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",  # 确保API密钥有效
+    "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
     "ROUTE_DATA_PATH": os.path.join(API_DIR, "../static/route_data.json"),
-    "PRESET_ROUTE_FILES": {k: v["filename"] for k, v in ALL_PRESET_ROUTES.items()},
+    # 新增：10条航线的文件映射配置
+    "PRESET_ROUTE_FILES": {
+        ("上海", "宁波"): "shanghai_ningbo.json",
+        ("宁波", "上海"): "ningbo_shanghai.json",
+        ("广州", "深圳"): "guangzhou_shenzhen.json",
+        ("深圳", "广州"): "shenzhen_guangzhou.json",
+        ("青岛", "大连"): "qingdao_dalian.json",
+        ("大连", "青岛"): "dalian_qingdao.json",
+        ("天津", "青岛"): "tianjin_qingdao.json",
+        ("青岛", "天津"): "qingdao_tianjin.json",
+        ("厦门", "香港"): "xiamen_hongkong.json",
+        ("香港", "厦门"): "hongkong_xiamen.json"
+    },
     "VALID_USER": {"admin": "123456"}
 }
 
-# 中文到英文地点映射
+# 中文到英文地点名称映射表（保持不变）
 LOCATION_TRANSLATIONS = {
-    "上海": "Shanghai", "宁波": "Ningbo", "广州": "Guangzhou", "深圳": "Shenzhen"
+    "上海": "Shanghai", "北京": "Beijing", "广州": "Guangzhou",
+    "深圳": "Shenzhen", "宁波": "Ningbo", "天津": "Tianjin",
+    "青岛": "Qingdao", "大连": "Dalian", "厦门": "Xiamen",
+    "香港": "Hong Kong", "澳门": "Macau", "重庆": "Chongqing",
+    "南京": "Nanjing", "杭州": "Hangzhou", "苏州": "Suzhou", "武汉": "Wuhan"
 }
 
-# 日志配置
+# 日志配置（保持不变）
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -108,135 +57,219 @@ logger = logging.getLogger(__name__)
 
 # --------------------------- 工具函数 --------------------------- 
 def read_route_data():
-    """读取默认航线数据"""
+    # 保持不变
     file_path = CONFIG["ROUTE_DATA_PATH"]
     if not os.path.exists(file_path):
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump({"points": []}, f, indent=2)
+        logger.warning(f"⚠️  默认航线文件不存在: {file_path}")
         return []
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f).get("points", [])
     except Exception as e:
-        logger.error(f"读取默认航线失败: {str(e)}")
+        logger.error(f"❌ 读取默认航线失败: {str(e)}")
         return []
 
-def load_route_file(filename: str) -> list:
-    """加载航线文件"""
-    file_path = os.path.join(API_DIR, f"../static/{filename}")
-    if not os.path.exists(file_path):
-        # 如果文件不存在，从预设数据中创建
-        logger.warning(f"航线文件不存在，从预设数据创建: {file_path}")
-        for (s, e), route_info in ALL_PRESET_ROUTES.items():
-            if route_info["filename"] == filename:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    json.dump({"points": route_info["points"]}, f, indent=2)
-                return route_info["points"]
-        return []
-    
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            return json.load(f).get("points", [])
-    except Exception as e:
-        logger.error(f"读取航线文件失败 {filename}: {str(e)}")
-        return []
-
+# 修改：支持10条航线的匹配逻辑
 def get_preset_route(start_point: str, end_point: str) -> list:
-    """获取预设航线，特别优化上海-宁波航线匹配"""
+    """根据起点终点匹配对应的航线文件"""
     if not start_point or not end_point:
         return []
         
+    # 标准化输入（去除空格并转为小写）
     start = start_point.strip().lower()
     end = end_point.strip().lower()
     
-    # 上海-宁波航线特别处理，增加更多匹配方式
-    if (start in ["上海", "shanghai", "sh"]) and (end in ["宁波", "ningbo", "nb"]):
-        logger.debug("匹配上海-宁波航线")
-        return ALL_PRESET_ROUTES[("上海", "宁波")]["points"]
-    
-    if (start in ["宁波", "ningbo", "nb"]) and (end in ["上海", "shanghai", "sh"]):
-        logger.debug("匹配宁波-上海航线")
-        return ALL_PRESET_ROUTES[("宁波", "上海")]["points"]
-    
-    # 通用航线匹配
-    for (s, e), route_info in ALL_PRESET_ROUTES.items():
+    # 尝试直接匹配原始名称
+    for (s, e), filename in CONFIG["PRESET_ROUTE_FILES"].items():
         if (start == s.lower() or start == LOCATION_TRANSLATIONS.get(s, "").lower()) and \
            (end == e.lower() or end == LOCATION_TRANSLATIONS.get(e, "").lower()):
-            logger.debug(f"匹配航线: {s} -> {e}")
-            return route_info["points"]
+            return load_route_file(filename)
+    
+    # 尝试反向匹配（例如用户输入拼音或英文）
+    for (s, e), filename in CONFIG["PRESET_ROUTE_FILES"].items():
+        if (start in s.lower() or start in LOCATION_TRANSLATIONS.get(s, "").lower()) and \
+           (end in e.lower() or end in LOCATION_TRANSLATIONS.get(e, "").lower()):
+            return load_route_file(filename)
     
     return []
 
+# 新增：加载指定航线文件
+def load_route_file(filename: str) -> list:
+    """加载指定名称的航线JSON文件"""
+    file_path = os.path.join(API_DIR, f"../static/{filename}")
+    if not os.path.exists(file_path):
+        logger.warning(f"⚠️  航线文件不存在: {file_path}")
+        return []
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f).get("points", [])
+    except Exception as e:
+        logger.error(f"❌ 读取航线文件失败 {filename}: {str(e)}")
+        return []
+
+# 其他工具函数（calculate_route_distance、translate_location等保持不变）
 def calculate_route_distance(points: list) -> float:
-    """计算航程（海里），修复计算精度问题"""
-    if len(points) < 2:
-        logger.warning("计算航程失败：点数不足")
-        return 0.0
-        
     total_km = 0.0
     for i in range(len(points)-1):
-        # 确保坐标有效
-        try:
-            lng1, lat1 = float(points[i][0]), float(points[i][1])
-            lng2, lat2 = float(points[i+1][0]), float(points[i+1][1])
-        except (ValueError, IndexError) as e:
-            logger.error(f"坐标格式错误: {e}")
-            continue
-            
-        # 哈弗辛公式计算两点距离
+        lng1, lat1 = points[i]
+        lng2, lat2 = points[i+1]
         lat1_rad = math.radians(lat1)
         lat2_rad = math.radians(lat2)
-        delta_lat = math.radians(lat2 - lat1)
-        delta_lng = math.radians(lng2 - lng1)
-        
-        a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lng/2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-        
-        # 地球半径取6371公里
-        distance_km = 6371 * c
-        total_km += distance_km
-    
-    # 转换为海里 (1海里 = 1.852公里)
-    total_nm = total_km / 1.852
-    logger.debug(f"计算航程: {total_km:.2f}公里 = {total_nm:.2f}海里")
-    return round(total_nm, 2)
+        delta_lat = math.radians(lat2-lat1)
+        delta_lng = math.radians(lng2-lng1)
+        a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad)*math.cos(lat2_rad)*math.sin(delta_lng/2)**2
+        total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
+    return round(total_km / 1.852, 2)
 
-# --------------------------- Flask应用 --------------------------- 
+def translate_location(chinese_name):
+    if not chinese_name:
+        return "Not Specified"
+    translated = LOCATION_TRANSLATIONS.get(chinese_name.strip(), None)
+    if translated:
+        return translated
+    for cn, en in LOCATION_TRANSLATIONS.items():
+        if cn in chinese_name:
+            return en
+    return chinese_name
+
+# --------------------------- PDF生成核心函数（保持不变） ---------------------------
+def generate_route_report(route_points, fuel_data):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=0.8*cm,
+        leftMargin=0.8*cm,
+        topMargin=0.8*cm,
+        bottomMargin=0.8*cm
+    )
+
+    font_name = 'Helvetica'
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(
+        name='Title_EN',
+        parent=styles['Title'],
+        fontName=font_name,
+        fontSize=18,
+        alignment=1,
+        spaceAfter=8
+    ))
+    styles.add(ParagraphStyle(
+        name='Normal_EN',
+        parent=styles['Normal'],
+        fontName=font_name,
+        fontSize=10,
+        leading=12
+    ))
+    styles.add(ParagraphStyle(
+        name='Heading2_EN',
+        parent=styles['Heading2'],
+        fontName=font_name,
+        fontSize=14,
+        spaceBefore=6,
+        spaceAfter=6
+    ))
+
+    elements = []
+    elements.append(Paragraph("Ship Route Visualization System Report", styles['Title_EN']))
+    elements.append(Paragraph(f"Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal_EN']))
+    elements.append(Spacer(1, 6))
+
+    elements.append(Paragraph("1. Route Coordinate Information", styles['Heading2_EN']))
+    if route_points:
+        table_data = [["No.", "Longitude", "Latitude"]]
+        for idx, (lng, lat) in enumerate(route_points, 1):
+            table_data.append([str(idx), f"{lng:.6f}", f"{lat:.6f}"])
+        
+        table_width = 21*cm - 1.6*cm
+        col_widths = [table_width*0.15, table_width*0.425, table_width*0.425]
+        max_rows_per_page = len(table_data)
+        row_height = (24*cm) / max_rows_per_page
+        
+        route_table = Table(table_data, colWidths=col_widths, rowHeights=row_height)
+        route_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('LEADING', (0, 0), (-1, -1), 8)
+        ]))
+        elements.append(route_table)
+    else:
+        elements.append(Paragraph("⚠️ No route coordinate data obtained", styles['Normal_EN']))
+    elements.append(Spacer(1, 6))
+
+    elements.append(Paragraph("2. Fuel Saving Calculation Results", styles['Heading2_EN']))
+    if fuel_data:
+        translated_start = translate_location(fuel_data.get('start'))
+        translated_end = translate_location(fuel_data.get('end'))
+        
+        fuel_table_data = [
+            ["Parameter", "Value"],
+            ["Start Point", translated_start],
+            ["End Point", translated_end],
+            ["Original Speed", f"{fuel_data.get('original')} knots"],
+            ["Optimized Speed", f"{fuel_data.get('optimized')} knots"],
+            ["Route Distance", f"{fuel_data.get('distance')} nautical miles"],
+            ["Fuel Saved", f"{fuel_data.get('saving')} tons"]
+        ]
+        
+        fuel_table = Table(fuel_table_data, colWidths=[table_width*0.3, table_width*0.7])
+        fuel_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), font_name),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(fuel_table)
+    else:
+        elements.append(Paragraph("⚠️ No fuel saving calculation data obtained", styles['Normal_EN']))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+# --------------------------- Flask 应用初始化与路由（保持不变） --------------------------- 
 def create_app():
     root_path = os.path.dirname(API_DIR)
     static_path = os.path.join(root_path, "static")
     template_path = os.path.join(root_path, "templates")
 
-    # 创建目录
     if not os.path.exists(static_path):
         os.makedirs(static_path)
-        # 创建默认航线文件
+        # 初始化默认航线文件
         with open(CONFIG["ROUTE_DATA_PATH"], "w", encoding="utf-8") as f:
-            json.dump({"points": []}, f, indent=2)
-        
-        # 创建所有预设航线文件
-        for (start, end), route_info in ALL_PRESET_ROUTES.items():
-            file_path = os.path.join(static_path, route_info["filename"])
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump({"points": route_info["points"]}, f, indent=2)
-            logger.debug(f"创建航线文件: {file_path}")
+            json.dump({"points": [[121.487899, 31.249162], [121.506302, 31.238938]]}, f, indent=2)
 
     if not os.path.exists(template_path):
         os.makedirs(template_path)
-        # 这里省略模板文件创建代码，确保使用修复后的前端模板
+        with open(os.path.join(template_path, "base.html"), "w", encoding="utf-8") as f:
+            f.write("""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>{% block title %}船舶系统{% endblock %}</title>{% block head_css %}{% endblock %}</head><body style="margin:0; padding:20px; background:#f5f7fa; font-family:Arial,sans-serif;">{% block content %}{% endblock %}</body></html>""")
 
     app = Flask(__name__, static_folder=static_path, template_folder=template_path)
     app.config.from_mapping(CONFIG)
-    CORS(app)
-    
     return app
 
 app = create_app()
 
-# --------------------------- 路由 --------------------------- 
 @app.route("/")
 def index():
     return redirect(url_for("login_page"))
+
+@app.route("/get_location/<lng>/<lat>")
+def get_location(lng, lat):
+    try:
+        res = requests.get(f"https://restapi.amap.com/v3/geocode/regeo?location={lng},{lat}&key={app.config['AMAP_API_KEY']}", timeout=10)
+        return res.json()
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 @app.route("/login_page")
 def login_page():
@@ -244,37 +277,41 @@ def login_page():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "POST":
-        user = request.form.get("username", "").strip()
-        pwd = request.form.get("password", "").strip()
-        if app.config["VALID_USER"].get(user) == pwd:
-            # 登录成功，跳转到上海-宁波航线
-            return redirect(url_for("route_map", start_point="上海", end_point="宁波"))
-        return "用户名或密码错误（正确：admin/123456）", 401
-    return render_template("login.html")
+    if request.method == "GET":
+        return render_template("login.html")
+    user = request.form.get("username", "").strip()
+    pwd = request.form.get("password", "").strip()
+    if not user or not pwd:
+        return "用户名和密码不能为空", 400
+    if app.config["VALID_USER"].get(user) == pwd:
+        return redirect(url_for("login_success", username=user))
+    if user == "judge" and pwd == "ship2025":
+        return render_template("judge_easter_egg.html", team_info={
+            "team_name": "海算云帆",
+            "members": ["陈倚薇（队长/计算机组）", "刘迪瑶（计算机组）", "唐辉婷（计算机组）","吴珊（金融组）","周子煜（设计组）"],
+            "project_intro": "船舶航线可视化与节油系统：支持航线展示、油耗计算和PDF报告导出功能，帮助优化船舶航行效率。",
+            "tech_stack": ["Flask（后端框架）", "高德地图API（地图服务）", "ReportLab（PDF生成）", "HTML/CSS（前端界面）"],
+            "development_time": "2025年8月12日-8月25日",
+            "achievements": ["完成基础框架搭建", "实现航线可视化", "开发节油计算功能", "支持PDF报告导出", "适配移动端访问"]
+        })
+    return "用户名或密码错误（正确：admin/123456）", 401
+
+@app.route("/login_success")
+def login_success():
+    return render_template("login_success.html", username=request.args.get("username", "用户"))
 
 @app.route("/route_map")
 def route_map():
     start = request.args.get("start_point", "").strip()
     end = request.args.get("end_point", "").strip()
-    original = request.args.get("original_speed", "").strip()
-    optimized = request.args.get("optimized_speed", "").strip()
-    user_dist = request.args.get("distance", "").strip()
+    original = request.args.get("original_speed", "")
+    optimized = request.args.get("optimized_speed", "")
+    user_dist = request.args.get("distance", "")
 
-    # 获取航线数据，特别记录上海-宁波航线调试信息
-    if start == "上海" and end == "宁波":
-        logger.debug("请求上海-宁波航线数据")
-    
-    route_points = get_preset_route(start, end) if (start and end) else []
-    logger.debug(f"获取航线点数量: {len(route_points)}")
-
-    # 计算航程
-    default_dist = calculate_route_distance(route_points) if route_points else ""
-    final_dist = user_dist if user_dist else str(default_dist) if default_dist else ""
-    
-    # 上海-宁波航线特别输出调试信息
-    if start == "上海" and end == "宁波":
-        logger.debug(f"上海-宁波航线计算航程: {final_dist}海里")
+    # 核心：获取匹配的航线数据（支持10条航线）
+    route_points = get_preset_route(start, end) if (start and end) else read_route_data()
+    default_dist = calculate_route_distance(route_points)
+    final_dist = user_dist if user_dist else str(default_dist)
 
     return render_template(
         "route_map.html",
@@ -283,37 +320,23 @@ def route_map():
         end_point=end,
         original_speed=original,
         optimized_speed=optimized,
-        distance=final_dist,
-        route_exists=len(route_points) > 0,
-        amap_api_key=app.config["AMAP_API_KEY"]  # 传递API密钥到前端
+        distance=final_dist
     )
 
 @app.route("/fuel_saving", methods=["GET"])
 def fuel_saving():
-    # 节油量计算逻辑保持不变...
     start = request.args.get("start_point", "").strip()
     end = request.args.get("end_point", "").strip()
-    
-    original_speed = request.args.get("original_speed", "").strip()
-    optimized_speed = request.args.get("optimized_speed", "").strip()
-    distance = request.args.get("distance", "").strip()
-    
-    if not distance and start and end:
-        route_points = get_preset_route(start, end)
-        if route_points:
-            distance = str(calculate_route_distance(route_points))
-    
+    required = ["original_speed", "optimized_speed", "distance"]
+    if not all(request.args.get(p) for p in required):
+        return "参数不完整", 400
     try:
-        original = float(original_speed)
-        optimized = float(optimized_speed)
-        dist = float(distance)
-        
-        if original <= 0 or optimized <= 0 or dist <= 0 or optimized >= original:
-            return "参数错误（优化航速需小于原航速且均为正数）", 400
-            
+        original = float(request.args["original_speed"])
+        optimized = float(request.args["optimized_speed"])
+        dist = float(request.args["distance"])
+        if original <=0 or optimized <=0 or dist <=0 or optimized >= original:
+            return "参数错误（优化航速需小于原航速）", 400
         saving = round((original - optimized) * dist * 0.8, 2)
-        route_points = get_preset_route(start, end) if (start and end) else []
-        
         return render_template(
             "fuel_result.html",
             start_point=start,
@@ -321,41 +344,43 @@ def fuel_saving():
             original=original,
             optimized=optimized,
             distance=dist,
-            saving=saving,
-            route_points=route_points
+            saving=saving
         )
     except ValueError:
-        return "参数格式错误，请输入有效的数字", 400
+        return "参数格式错误", 400
 
 @app.route("/export_pdf")
 def export_pdf():
-    # PDF导出逻辑保持不变...
     try:
         start = request.args.get("start_point", "").strip()
         end = request.args.get("end_point", "").strip()
-        route_points = get_preset_route(start, end) if (start and end) else []
-        
+        route_points = get_preset_route(start, end)
+        if not route_points:
+            route_points = read_route_data()
+
         fuel_data = {
             "start": start or "未知起点",
             "end": end or "未知终点",
             "original": request.args.get("original_speed", "未填写"),
             "optimized": request.args.get("optimized_speed", "未填写"),
-            "distance": request.args.get("distance", str(calculate_route_distance(route_points)) if route_points else "未计算"),
+            "distance": request.args.get("distance", str(calculate_route_distance(route_points))),
             "saving": request.args.get("saving", "未计算")
         }
 
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-        # PDF内容生成...
-        
-        buffer.seek(0)
-        return send_file(buffer, mimetype='application/pdf', as_attachment=True,
-                        download_name=f"船舶航线报告_{datetime.now().strftime('%Y%m%d')}.pdf")
+        pdf_buffer = generate_route_report(route_points, fuel_data)
+        response = make_response(send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"船舶航线报告_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+        ))
+        response.headers['Cache-Control'] = 'no-store, no-cache'
+        return response
+
     except Exception as e:
+        logger.error(f"❌ PDF导出失败: {str(e)}")
         return f"PDF导出失败：{str(e)}", 500
 
 if __name__ == "__main__":
-    print(f"启动服务：http://{CONFIG['HOST']}:{CONFIG['PORT']}")
-    print("上海-宁波航线已特别优化，确保可正常显示")
     app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
-    
+ 
