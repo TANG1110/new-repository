@@ -133,8 +133,7 @@
             <label>航程（海里）</label>
             <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
                 placeholder="自动计算">
-            <!-- 修改提示：所有预设航线均支持自动计算 -->
-            <div class="info-text">所有预设航线（如上海-宁波）留空将自动计算航程</div>
+            <div class="info-text">留空则自动计算航线距离</div>
         </div>
         <div>
             <button type="submit">加载航线</button>
@@ -162,7 +161,7 @@
             <label>航程（海里）</label>
             <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
                 placeholder="自动计算">
-            <div class="info-text">留空将自动计算</div>
+            <div class="info-text">上海-宁波航线留空将自动计算</div>
         </div>
         <div>
             <button type="submit">计算节油量</button>
@@ -228,9 +227,22 @@
                     icon: new AMap.Icon({ size: new AMap.Size(30, 30), image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png' }),
                     anchor: 'bottom-center'
                 }).setMap(map);
+            } else if (routePoints.length === 1) {
+                new AMap.Marker({
+                    position: routePoints[0],
+                    title: '航线点',
+                    icon: new AMap.Icon({ size: new AMap.Size(30, 30), image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png' })
+                }).setMap(map);
             }
+
         } catch (error) {
             console.error("地图加载失败:", error);
+            const mapWrapper = document.querySelector('.map-wrapper');
+            if (!mapWrapper.querySelector('.map-tip')) {
+                mapWrapper.insertAdjacentHTML('afterbegin',
+                    '<div class="map-tip" style="color:#dc3545;">地图加载失败，请刷新页面重试</div>'
+                );
+            }
         }
     };
 </script>
