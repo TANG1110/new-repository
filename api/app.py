@@ -72,6 +72,8 @@ def read_route_data():
 # 修改：支持10条航线的匹配逻辑
 def get_preset_route(start_point: str, end_point: str) -> list:
     """根据起点终点匹配对应的航线文件"""
+    if not start_point and not end_point:
+     return []
     if not start_point or not end_point:
         return []
         
@@ -97,6 +99,7 @@ def get_preset_route(start_point: str, end_point: str) -> list:
 def load_route_file(filename: str) -> list:
     """加载指定名称的航线JSON文件"""
     file_path = os.path.join(API_DIR, f"../static/{filename}")
+    print(filename)
     if not os.path.exists(file_path):
         logger.warning(f"⚠️  航线文件不存在: {file_path}")
         return []
@@ -121,16 +124,31 @@ def calculate_route_distance(points: list) -> float:
         total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
     return round(total_km / 1.852, 2)
 
+import re
+
+
+LOCATION_TRANSLATIONS = {
+    "北京": "Beijing",
+    "上海": "Shanghai"
+    # 这里添加更多的中文 - 英文地点映射
+}
+
+
 def translate_location(chinese_name):
     if not chinese_name:
         return "Not Specified"
-    translated = LOCATION_TRANSLATIONS.get(chinese_name.strip(), None)
-    if translated:
-        return translated
-    for cn, en in LOCATION_TRANSLATIONS.items():
-        if cn in chinese_name:
-            return en
+    # 判断是否为中文，中文的 Unicode 范围大致在 \u4e00 - \u9fa5
+    if re.search('[\u4e00-\u9fa5]', chinese_name):
+        translated = LOCATION_TRANSLATIONS.get(chinese_name)
+        if translated:
+            return translated
+        for key, value in LOCATION_TRANSLATIONS.items():
+            if key in chinese_name:
+                return value
+        return chinese_name
+    # 如果是英文直接返回
     return chinese_name
+
 
 # --------------------------- PDF生成核心函数（保持不变） ---------------------------
 def generate_route_report(route_points, fuel_data):
