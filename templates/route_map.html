@@ -57,7 +57,7 @@
 
     button {
         padding: 8px 20px;
-        background: hsl(228, 70%, 61%);
+        background: #0033FF;
         color: white;
         border: none;
         border-radius: 4px;
@@ -67,7 +67,7 @@
     }
 
     button:hover {
-        background: #4c6df1;
+        background: #0021aa;
     }
 
     /* 地图容器样式 */
@@ -98,7 +98,7 @@
 
 {% block content %}
 <!-- 标题居中 -->
-<h1 class="page-title">船舶航线可视化页面</h1>
+<h1 class="page-title">船舶航线可视化系统</h1>
 
 <!-- 参数输入区域（整合起点终点和航速参数） -->
 <div class="param-container">
@@ -136,7 +136,7 @@
         <div class="form-group">
             <label>航程（海里）</label>
             <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
-                placeholder="例如：150">
+                placeholder="自动计算">
             <div class="info-text">留空则自动计算航线距离</div>
         </div>
 
