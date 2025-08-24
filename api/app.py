@@ -120,18 +120,44 @@ def calculate_route_distance(points: list) -> float:
         total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
     return round(total_km / 1.852, 2)
 
+# 优化后的地点翻译函数
 def translate_location(chinese_name):
+    """优化的中文地点到英文翻译函数，提高匹配成功率"""
     if not chinese_name:
         return "Not Specified"
-    translated = LOCATION_TRANSLATIONS.get(chinese_name.strip(), None)
+    
+    # 预处理：去除空格、常见后缀（港、市），统一处理
+    cleaned_name = chinese_name.strip().replace(" ", "").replace("港", "").replace("市", "")
+    
+    # 1. 尝试精确匹配
+    translated = LOCATION_TRANSLATIONS.get(cleaned_name, None)
     if translated:
         return translated
+    
+    # 2. 尝试反向包含匹配（如"上海市"包含"上海"）
     for cn, en in LOCATION_TRANSLATIONS.items():
-        if cn in chinese_name:
+        if cleaned_name in cn or cn in cleaned_name:
             return en
-    return chinese_name
+    
+    # 3. 处理拼音输入（支持全拼匹配）
+    pinyin_mapping = {
+        "shanghai": "Shanghai", "beijing": "Beijing", "guangzhou": "Guangzhou",
+        "shenzhen": "Shenzhen", "ningbo": "Ningbo", "tianjin": "Tianjin",
+        "qingdao": "Qingdao", "dalian": "Dalian", "xiamen": "Xiamen",
+        "hongkong": "Hong Kong", "xianggang": "Hong Kong", "macau": "Macau",
+        "aomen": "Macau", "chongqing": "Chongqing", "nanjing": "Nanjing",
+        "hangzhou": "Hangzhou", "suzhou": "Suzhou", "wuhan": "Wuhan"
+    }
+    
+    # 转换为小写并尝试拼音匹配
+    lower_name = cleaned_name.lower()
+    if lower_name in pinyin_mapping:
+        return pinyin_mapping[lower_name]
+    
+    # 4. 所有匹配失败时，返回首字母大写的原始名称
+    return chinese_name.title()
 
-# --------------------------- PDF生成核心函数（使用提供的代码） ---------------------------
+# --------------------------- PDF生成核心函数 ---------------------------
 def generate_route_report(route_points, fuel_data):
     buffer = BytesIO()
     
@@ -401,3 +427,4 @@ def export_pdf():
 
 if __name__ == "__main__":
     app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
+    
