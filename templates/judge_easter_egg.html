@@ -1,99 +1,104 @@
-from flask import Flask, render_template, request, redirect, url_for, make_response, send_file
-import math
-from io import BytesIO
-from datetime import datetime
-import os
+{% extends "base.html" %}
 
-# 确保中文显示正常
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]
+{% block title %}评委彩蛋 - 海算云帆团队{% endblock %}
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'ship_route_visualization'
-app.config['AMAP_KEY'] = '1389a7514ce65016496e0ee1349282b7' # 测试可用的高德地图API密钥
+{% block head_css %}
+<style>
+    .egg-container {
+        width: 80%;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 30px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
 
-# 上海-宁波航线坐标点（精确到港口）
-SHANGHAI_NINGBO_ROUTE = [
-[121.507812, 31.237057], # 上海港
-[121.552376, 31.202274],
-[121.837651, 31.051066],
-[121.901726, 30.96938],
-[122.0377, 31.2511],
-[122.1017, 31.0694],
-[122.2018, 30.6292],
-[122.1130, 30.4422],
-[121.8909, 30.4252],
-[121.8193, 30.2694],
-[121.6996, 30.1643],
-[121.8544, 29.9572],
-[121.9528, 29.9771],
-[122.0262, 29.9258],
-[122.1683, 29.9293],
-[122.1509, 29.8670],
-[122.0214, 29.8229] # 宁波港
-]
+    .team-title {
+        text-align: center;
+        color: #0033FF;
+        font-size: 28px;
+        margin-bottom: 20px;
+    }
 
-# 预设航线数据
-ROUTE_DATA = {
-"上海-宁波": SHANGHAI_NINGBO_ROUTE,
-"宁波-上海": SHANGHAI_NINGBO_ROUTE[::-1] # 反向航线
-}
+    .info-item {
+        margin: 15px 0;
+    }
 
-# 计算两点间距离（海里）
-def haversine_distance(lat1, lon1, lat2, lon2):
-R = 6371 # 地球半径（公里）
-dLat = math.radians(lat2 - lat1)
-dLon = math.radians(lon2 - lon1)
-a = math.sin(dLat/2) * math.sin(dLat/2) + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon/2)
-* math.sin(dLon/2)
-c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-km = R * c
-return km / 1.852 # 转换为海里
+    .info-label {
+        font-weight: bold;
+        color: #333;
+        font-size: 16px;
+        margin-bottom: 5px;
+    }
 
-# 计算总航程
-def calculate_total_distance(points):
-total = 0.0
-for i in range(len(points)-1):
-lat1, lon1 = points[i][1], points[i][0]
-lat2, lon2 = points[i+1][1], points[i+1][0]
-total += haversine_distance(lat1, lon1, lat2, lon2)
-return round(total, 2)
+    .info-content {
+        color: #666;
+        font-size: 14px;
+        line-height: 1.6;
+    }
 
-# 登录页面
-@app.route('/', methods=['GET', 'POST'])
-def login():
-if request.method == 'POST':
-username = request.form.get('username')
-password = request.form.get('password')
-# 简单验证
-if username == 'admin' and password == '123456':
-return redirect(url_for('route_map', start='上海', end='宁波'))
-return render_template('login.html', error='用户名或密码错误（正确：admin/123456）')
-return render_template('login.html')
+    .back-btn {
+        display: block;
+        width: 120px;
+        margin: 30px auto 0;
+        padding: 10px;
+        text-align: center;
+        background: #0033FF;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        transition: background 0.3s;
+    }
 
-# 航线地图页面（核心）
-@app.route('/route_map')
-def route_map():
-start = request.args.get('start', '上海')
-end = request.args.get('end', '宁波')
-route_key = f"{start}-{end}"
+    .back-btn:hover {
+        background: #0021aa;
+    }
+</style>
+{% endblock %}
 
-# 获取航线数据
-route_points = ROUTE_DATA.get(route_key, [])
-distance = calculate_total_distance(route_points) if route_points else 0
+{% block content %}
+<div class="egg-container">
+    <h1 class="team-title">{{ team_info.team_name }} 团队信息</h1>
 
-return render_template('route_map.html',
-start=start,
-end=end,
-route_points=route_points,
-distance=distance,
-amap_key=app.config['AMAP_KEY'])
+    <div class="info-item">
+        <div class="info-label">团队成员</div>
+        <div class="info-content">
+            {% for member in team_info.members %}
+            <div>{{ member }}</div>
+            {% endfor %}
+        </div>
+    </div>
 
-# 确保templates目录存在
-if not os.path.exists('templates'):
-os.makedirs('templates')
+    <div class="info-item">
+        <div class="info-label">项目介绍</div>
+        <div class="info-content">{{ team_info.project_intro }}</div>
+    </div>
 
-if __name__ == '__main__':
-app.run(host='0.0.0.0', port=5000, debug=True)
+    <div class="info-item">
+        <div class="info-label">技术栈</div>
+        <div class="info-content">
+            {% for tech in team_info.tech_stack %}
+            <span style="display:inline-block; margin:5px; padding:5px 10px; background:#f0f5ff; border-radius:4px;">{{
+                tech }}</span>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="info-item">
+        <div class="info-label">开发时间</div>
+        <div class="info-content">{{ team_info.development_time }}</div>
+    </div>
+
+    <div class="info-item">
+        <div class="info-label">项目成果</div>
+        <div class="info-content">
+            {% for achievement in team_info.achievements %}
+            <div>• {{ achievement }}</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <a href="{{ url_for('route_map') }}" class="back-btn">返回航线页面</a>
+</div>
+{% endblock %}
