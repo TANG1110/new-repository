@@ -6,23 +6,28 @@ import math
 from io import BytesIO
 from datetime import datetime
 from flask import Flask, request, render_template, redirect, url_for, make_response, send_file
-# PDF生成相关库
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
-# --------------------------- 配置区 --------------------------- 
+# --------------------------- 配置区（适配 Vercel 路径） --------------------------- 
 API_DIR = os.path.abspath(os.path.dirname(__file__))
+# Vercel 静态文件目录默认是 /static，这里自动适配
+STATIC_DIR = os.path.join(API_DIR, "static")
+if not os.path.exists(STATIC_DIR):
+    os.makedirs(STATIC_DIR)
+
 CONFIG = {
-    "SECRET_KEY": "your_secret_key",
-    "DEBUG": True,
-    "PORT": int(os.environ.get("PORT", 5001)),
-    "HOST": "127.0.0.1",
-    "AMAP_API_KEY": "1389a7514ce65016496e0ee1349282b7",
-    "ROUTE_DATA_PATH": os.path.join(API_DIR, "../static/route_data.json"),
-    # 新增：10条航线的文件映射配置
+    "SECRET_KEY": os.environ.get("SECRET_KEY", "your_secret_key"),  # Vercel 环境变量获取
+    "DEBUG": os.environ.get("DEBUG", "False") == "True",
+    "PORT": int(os.environ.get("PORT", 3000)),  # Vercel 默认端口
+    "HOST": "0.0.0.0",  # Vercel 必须监听 0.0.0.0
+    "AMAP_API_KEY": os.environ.get("AMAP_API_KEY", "1389a7514ce65016496e0ee1349282b7"),
+    "ROUTE_DATA_PATH": os.path.join(STATIC_DIR, "route_data.json"),
     "PRESET_ROUTE_FILES": {
         ("上海", "宁波"): "shanghai_ningbo.json",
         ("宁波", "上海"): "ningbo_shanghai.json",
@@ -35,10 +40,10 @@ CONFIG = {
         ("厦门", "香港"): "xiamen_hongkong.json",
         ("香港", "厦门"): "hongkong_xiamen.json"
     },
-    "VALID_USER": {"admin": "123456"}
+    "VALID_USER": {"admin": os.environ.get("ADMIN_PWD", "123456")}
 }
 
-# 中文到英文地点名称映射表（保持不变）
+# 中文到英文地点映射（确保 PDF 英文显示兼容）
 LOCATION_TRANSLATIONS = {
     "上海": "Shanghai", "北京": "Beijing", "广州": "Guangzhou",
     "深圳": "Shenzhen", "宁波": "Ningbo", "天津": "Tianjin",
@@ -47,9 +52,9 @@ LOCATION_TRANSLATIONS = {
     "南京": "Nanjing", "杭州": "Hangzhou", "苏州": "Suzhou", "武汉": "Wuhan"
 }
 
-# 日志配置（保持不变）
+# 日志配置
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler()]
 )
@@ -57,35 +62,33 @@ logger = logging.getLogger(__name__)
 
 # --------------------------- 工具函数 --------------------------- 
 def read_route_data():
-    # 保持不变
+    """读取默认航线（仅在无起点终点时返回空）"""
     file_path = CONFIG["ROUTE_DATA_PATH"]
     if not os.path.exists(file_path):
-        logger.warning(f"⚠️  默认航线文件不存在: {file_path}")
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump({"points": []}, f, indent=2)  # 初始化空航线
         return []
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f).get("points", [])
     except Exception as e:
-        logger.error(f"❌ 读取默认航线失败: {str(e)}")
+        logger.error(f"读取默认航线失败: {str(e)}")
         return []
 
-# 修改：支持10条航线的匹配逻辑
 def get_preset_route(start_point: str, end_point: str) -> list:
-    """根据起点终点匹配对应的航线文件"""
+    """根据起点终点匹配航线（仅在两者都存在时生效）"""
     if not start_point or not end_point:
         return []
         
-    # 标准化输入（去除空格并转为小写）
     start = start_point.strip().lower()
     end = end_point.strip().lower()
     
-    # 尝试直接匹配原始名称
+    # 匹配预设航线
     for (s, e), filename in CONFIG["PRESET_ROUTE_FILES"].items():
         if (start == s.lower() or start == LOCATION_TRANSLATIONS.get(s, "").lower()) and \
            (end == e.lower() or end == LOCATION_TRANSLATIONS.get(e, "").lower()):
             return load_route_file(filename)
     
-    # 尝试反向匹配（例如用户输入拼音或英文）
     for (s, e), filename in CONFIG["PRESET_ROUTE_FILES"].items():
         if (start in s.lower() or start in LOCATION_TRANSLATIONS.get(s, "").lower()) and \
            (end in e.lower() or end in LOCATION_TRANSLATIONS.get(e, "").lower()):
@@ -93,22 +96,21 @@ def get_preset_route(start_point: str, end_point: str) -> list:
     
     return []
 
-# 新增：加载指定航线文件
 def load_route_file(filename: str) -> list:
-    """加载指定名称的航线JSON文件"""
-    file_path = os.path.join(API_DIR, f"../static/{filename}")
+    """加载静态目录下的航线文件"""
+    file_path = os.path.join(STATIC_DIR, filename)
     if not os.path.exists(file_path):
-        logger.warning(f"⚠️  航线文件不存在: {file_path}")
+        logger.warning(f"航线文件不存在: {file_path}")
         return []
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f).get("points", [])
     except Exception as e:
-        logger.error(f"❌ 读取航线文件失败 {filename}: {str(e)}")
+        logger.error(f"读取航线文件失败 {filename}: {str(e)}")
         return []
 
-# 其他工具函数（calculate_route_distance、translate_location等保持不变）
 def calculate_route_distance(points: list) -> float:
+    """计算航线距离（海里）"""
     total_km = 0.0
     for i in range(len(points)-1):
         lng1, lat1 = points[i]
@@ -119,9 +121,10 @@ def calculate_route_distance(points: list) -> float:
         delta_lng = math.radians(lng2-lng1)
         a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad)*math.cos(lat2_rad)*math.sin(delta_lng/2)**2
         total_km += 6371 * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
-    return round(total_km / 1.852, 2)
+    return round(total_km / 1.852, 2)  # 转换为海里
 
 def translate_location(chinese_name):
+    """中文地点转英文（适配 PDF 英文显示）"""
     if not chinese_name:
         return "Not Specified"
     translated = LOCATION_TRANSLATIONS.get(chinese_name.strip(), None)
@@ -132,8 +135,9 @@ def translate_location(chinese_name):
             return en
     return chinese_name
 
-# --------------------------- PDF生成核心函数（保持不变） ---------------------------
+# --------------------------- PDF 生成（适配 Vercel 无中文字体环境） ---------------------------
 def generate_route_report(route_points, fuel_data):
+    """生成英文 PDF 报告（避免 Vercel 字体依赖）"""
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -144,6 +148,7 @@ def generate_route_report(route_points, fuel_data):
         bottomMargin=0.8*cm
     )
 
+    # 使用系统默认英文字体（Vercel 环境兼容）
     font_name = 'Helvetica'
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(
@@ -175,6 +180,7 @@ def generate_route_report(route_points, fuel_data):
     elements.append(Paragraph(f"Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal_EN']))
     elements.append(Spacer(1, 6))
 
+    # 航线坐标信息
     elements.append(Paragraph("1. Route Coordinate Information", styles['Heading2_EN']))
     if route_points:
         table_data = [["No.", "Longitude", "Latitude"]]
@@ -183,8 +189,7 @@ def generate_route_report(route_points, fuel_data):
         
         table_width = 21*cm - 1.6*cm
         col_widths = [table_width*0.15, table_width*0.425, table_width*0.425]
-        max_rows_per_page = len(table_data)
-        row_height = (24*cm) / max_rows_per_page
+        row_height = (24*cm) / len(table_data)
         
         route_table = Table(table_data, colWidths=col_widths, rowHeights=row_height)
         route_table.setStyle(TableStyle([
@@ -194,23 +199,21 @@ def generate_route_report(route_points, fuel_data):
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('LEADING', (0, 0), (-1, -1), 8)
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
         ]))
         elements.append(route_table)
     else:
         elements.append(Paragraph("⚠️ No route coordinate data obtained", styles['Normal_EN']))
     elements.append(Spacer(1, 6))
 
+    # 节油计算结果（英文显示，避免中文问题）
     elements.append(Paragraph("2. Fuel Saving Calculation Results", styles['Heading2_EN']))
     if fuel_data:
-        translated_start = translate_location(fuel_data.get('start'))
-        translated_end = translate_location(fuel_data.get('end'))
-        
+        # 强制转换为英文显示
         fuel_table_data = [
             ["Parameter", "Value"],
-            ["Start Point", translated_start],
-            ["End Point", translated_end],
+            ["Start Point", translate_location(fuel_data.get('start'))],
+            ["End Point", translate_location(fuel_data.get('end'))],
             ["Original Speed", f"{fuel_data.get('original')} knots"],
             ["Optimized Speed", f"{fuel_data.get('optimized')} knots"],
             ["Route Distance", f"{fuel_data.get('distance')} nautical miles"],
@@ -236,29 +239,24 @@ def generate_route_report(route_points, fuel_data):
     buffer.seek(0)
     return buffer
 
-# --------------------------- Flask 应用初始化与路由（保持不变） --------------------------- 
+# --------------------------- Flask 应用（适配 Vercel） --------------------------- 
 def create_app():
-    root_path = os.path.dirname(API_DIR)
-    static_path = os.path.join(root_path, "static")
-    template_path = os.path.join(root_path, "templates")
-
-    if not os.path.exists(static_path):
-        os.makedirs(static_path)
-        # 初始化默认航线文件
-        with open(CONFIG["ROUTE_DATA_PATH"], "w", encoding="utf-8") as f:
-            json.dump({"points": [[121.487899, 31.249162], [121.506302, 31.238938]]}, f, indent=2)
-
-    if not os.path.exists(template_path):
-        os.makedirs(template_path)
-        with open(os.path.join(template_path, "base.html"), "w", encoding="utf-8") as f:
-            f.write("""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>{% block title %}船舶系统{% endblock %}</title>{% block head_css %}{% endblock %}</head><body style="margin:0; padding:20px; background:#f5f7fa; font-family:Arial,sans-serif;">{% block content %}{% endblock %}</body></html>""")
-
-    app = Flask(__name__, static_folder=static_path, template_folder=template_path)
+    """创建 Flask 应用（适配 Vercel 目录结构）"""
+    app = Flask(__name__, 
+                static_folder=STATIC_DIR,
+                template_folder=os.path.join(API_DIR, "templates"))  # 模板目录
     app.config.from_mapping(CONFIG)
+    
+    # 初始化默认航线文件（空）
+    if not os.path.exists(CONFIG["ROUTE_DATA_PATH"]):
+        with open(CONFIG["ROUTE_DATA_PATH"], "w", encoding="utf-8") as f:
+            json.dump({"points": []}, f, indent=2)
+    
     return app
 
 app = create_app()
 
+# 路由定义
 @app.route("/")
 def index():
     return redirect(url_for("login_page"))
@@ -266,7 +264,10 @@ def index():
 @app.route("/get_location/<lng>/<lat>")
 def get_location(lng, lat):
     try:
-        res = requests.get(f"https://restapi.amap.com/v3/geocode/regeo?location={lng},{lat}&key={app.config['AMAP_API_KEY']}", timeout=10)
+        res = requests.get(
+            f"https://restapi.amap.com/v3/geocode/regeo?location={lng},{lat}&key={app.config['AMAP_API_KEY']}",
+            timeout=10
+        )
         return res.json()
     except Exception as e:
         return {"error": str(e)}, 500
@@ -282,36 +283,41 @@ def login():
     user = request.form.get("username", "").strip()
     pwd = request.form.get("password", "").strip()
     if not user or not pwd:
-        return "用户名和密码不能为空", 400
+        return "Username and password cannot be empty", 400
     if app.config["VALID_USER"].get(user) == pwd:
         return redirect(url_for("login_success", username=user))
     if user == "judge" and pwd == "ship2025":
         return render_template("judge_easter_egg.html", team_info={
-            "team_name": "海算云帆",
-            "members": ["陈倚薇（队长/计算机组）", "刘迪瑶（计算机组）", "唐辉婷（计算机组）","吴珊（金融组）","周子煜（设计组）"],
-            "project_intro": "船舶航线可视化与节油系统：支持航线展示、油耗计算和PDF报告导出功能，帮助优化船舶航行效率。",
-            "tech_stack": ["Flask（后端框架）", "高德地图API（地图服务）", "ReportLab（PDF生成）", "HTML/CSS（前端界面）"],
-            "development_time": "2025年8月12日-8月25日",
-            "achievements": ["完成基础框架搭建", "实现航线可视化", "开发节油计算功能", "支持PDF报告导出", "适配移动端访问"]
+            "team_name": "HaiSuan YunFan",
+            "members": ["Chen Yiwei (Leader/Dev)", "Liu Diyao (Dev)", "Tang Huiting (Dev)", 
+                       "Wu Shan (Finance)", "Zhou Ziyu (Design)"],
+            "project_intro": "Ship Route Visualization & Fuel Saving System: Supports route display, fuel calculation, and PDF report export to optimize ship navigation efficiency.",
+            "tech_stack": ["Flask (Backend)", "AMAP API (Maps)", "ReportLab (PDF)", "HTML/CSS (Frontend)"],
+            "development_time": "Aug 12-25, 2025",
+            "achievements": ["Basic framework completed", "Route visualization", "Fuel saving calculation", 
+                           "PDF report export", "Mobile adaptation"]
         })
-    return "用户名或密码错误（正确：admin/123456）", 401
+    return "Incorrect username or password (correct: admin/123456)", 401
 
 @app.route("/login_success")
 def login_success():
-    return render_template("login_success.html", username=request.args.get("username", "用户"))
+    return render_template("login_success.html", username=request.args.get("username", "User"))
 
 @app.route("/route_map")
 def route_map():
+    """航线地图页面（仅在输入起点终点后加载航线）"""
     start = request.args.get("start_point", "").strip()
     end = request.args.get("end_point", "").strip()
     original = request.args.get("original_speed", "")
     optimized = request.args.get("optimized_speed", "")
     user_dist = request.args.get("distance", "")
 
-    # 核心：获取匹配的航线数据（支持10条航线）
-    route_points = get_preset_route(start, end) if (start and end) else read_route_data()
-    default_dist = calculate_route_distance(route_points)
-    final_dist = user_dist if user_dist else str(default_dist)
+    # 核心修改：仅在起点和终点都存在时加载航线
+    route_points = get_preset_route(start, end) if (start and end) else []
+    
+    # 计算距离（仅在有航线且用户未输入时自动计算）
+    default_dist = calculate_route_distance(route_points) if route_points else ""
+    final_dist = user_dist if user_dist else str(default_dist) if default_dist else ""
 
     return render_template(
         "route_map.html",
@@ -325,17 +331,18 @@ def route_map():
 
 @app.route("/fuel_saving", methods=["GET"])
 def fuel_saving():
+    """节油量计算"""
     start = request.args.get("start_point", "").strip()
     end = request.args.get("end_point", "").strip()
     required = ["original_speed", "optimized_speed", "distance"]
     if not all(request.args.get(p) for p in required):
-        return "参数不完整", 400
+        return "Missing parameters", 400
     try:
         original = float(request.args["original_speed"])
         optimized = float(request.args["optimized_speed"])
         dist = float(request.args["distance"])
         if original <=0 or optimized <=0 or dist <=0 or optimized >= original:
-            return "参数错误（优化航速需小于原航速）", 400
+            return "Invalid parameters (optimized speed must be less than original)", 400
         saving = round((original - optimized) * dist * 0.8, 2)
         return render_template(
             "fuel_result.html",
@@ -347,24 +354,23 @@ def fuel_saving():
             saving=saving
         )
     except ValueError:
-        return "参数格式错误", 400
+        return "Invalid parameter format", 400
 
 @app.route("/export_pdf")
 def export_pdf():
+    """导出 PDF 报告（英文显示，适配 Vercel）"""
     try:
         start = request.args.get("start_point", "").strip()
         end = request.args.get("end_point", "").strip()
-        route_points = get_preset_route(start, end)
-        if not route_points:
-            route_points = read_route_data()
+        route_points = get_preset_route(start, end) if (start and end) else []
 
         fuel_data = {
-            "start": start or "未知起点",
-            "end": end or "未知终点",
-            "original": request.args.get("original_speed", "未填写"),
-            "optimized": request.args.get("optimized_speed", "未填写"),
-            "distance": request.args.get("distance", str(calculate_route_distance(route_points))),
-            "saving": request.args.get("saving", "未计算")
+            "start": start or "Unknown",
+            "end": end or "Unknown",
+            "original": request.args.get("original_speed", "Not specified"),
+            "optimized": request.args.get("optimized_speed", "Not specified"),
+            "distance": request.args.get("distance", str(calculate_route_distance(route_points)) if route_points else "Not calculated"),
+            "saving": request.args.get("saving", "Not calculated")
         }
 
         pdf_buffer = generate_route_report(route_points, fuel_data)
@@ -372,14 +378,19 @@ def export_pdf():
             pdf_buffer,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=f"船舶航线报告_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+            download_name=f"ship_route_report_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
         ))
         response.headers['Cache-Control'] = 'no-store, no-cache'
         return response
 
     except Exception as e:
-        logger.error(f"❌ PDF导出失败: {str(e)}")
-        return f"PDF导出失败：{str(e)}", 500
+        logger.error(f"PDF export failed: {str(e)}")
+        return f"PDF export failed: {str(e)}", 500
 
+# Vercel 入口
 if __name__ == "__main__":
-    app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
+    app.run(
+        debug=app.config["DEBUG"],
+        port=app.config["PORT"],
+        host=app.config["HOST"]
+    )

@@ -1,27 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}船舶航线可视化系统{% endblock %}
+{% block title %}Ship Route Visualization System{% endblock %}
 
 {% block head_css %}
 <style>
-    /* 统一登录页/地图页风格（参考登录页样式） */
     .page-title {
         text-align: center;
         color: #0033FF;
         font-size: 26px;
         margin: 20px 0;
         font-weight: bold;
-    }
-
-    .route-info {
-        width: 90%;
-        max-width: 1200px;
-        margin: 0 auto 20px;
-        padding: 20px;
-        background: white;
-        border: 1px solid #e5e9f2;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
     .param-container {
@@ -70,7 +58,6 @@
         background: #0021aa;
     }
 
-    /* 地图容器样式 */
     .map-wrapper {
         width: 90%;
         max-width: 1200px;
@@ -85,111 +72,114 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    /* 信息提示样式 */
     .info-text {
         color: #666;
         font-size: 14px;
         margin-top: 5px;
         font-style: italic;
     }
+
+    .alert-message {
+        text-align: center;
+        padding: 15px;
+        color: #666;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
 </style>
 <script src="https://webapi.amap.com/maps?v=2.0&key=1389a7514ce65016496e0ee1349282b7"></script>
 {% endblock %}
 
 {% block content %}
-<!-- 标题居中 -->
-<h1 class="page-title">船舶航线可视化系统</h1>
+<h1 class="page-title">Ship Route Visualization System</h1>
 
-<!-- 参数输入区域（整合起点终点和航速参数） -->
+<!-- 航线参数设置 -->
 <div class="param-container">
-    <h3>航线参数设置</h3>
+    <h3>Route Parameters</h3>
     <form action="{{ url_for('route_map') }}" method="get" class="calc-form">
-        <!-- 新增：起点输入框 -->
         <div class="form-group">
-            <label>起点</label>
-            <input type="text" name="start_point" value="{{ start_point if start_point else '' }}" placeholder="例如：上海">
-            <!-- 删除“支持城市名称（如上海、宁波）”提示文本 -->
+            <label>Start Point</label>
+            <input type="text" name="start_point" value="{{ start_point if start_point else '' }}"
+                placeholder="e.g., Shanghai">
         </div>
 
-        <!-- 新增：终点输入框 -->
         <div class="form-group">
-            <label>终点</label>
-            <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="例如：宁波">
-            <!-- 删除“支持城市名称（如上海、宁波）”提示文本 -->
+            <label>End Point</label>
+            <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="e.g., Ningbo">
         </div>
 
-        <!-- 原航速输入框 -->
         <div class="form-group">
-            <label>原航速（节）</label>
+            <label>Original Speed (knots)</label>
             <input type="number" name="original_speed" step="0.1" value="{{ original_speed if original_speed else '' }}"
-                placeholder="例如：15.5">
+                placeholder="e.g., 15.5">
         </div>
 
-        <!-- 优化航速输入框 -->
         <div class="form-group">
-            <label>优化航速（节）</label>
+            <label>Optimized Speed (knots)</label>
             <input type="number" name="optimized_speed" step="0.1"
-                value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3">
+                value="{{ optimized_speed if optimized_speed else '' }}" placeholder="e.g., 12.3">
         </div>
 
-        <!-- 航程输入框（自动计算/手动修改） -->
         <div class="form-group">
-            <label>航程（海里）</label>
+            <label>Route Distance (nautical miles)</label>
             <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
-                placeholder="自动计算">
-            <div class="info-text">留空则自动计算航线距离</div>
+                placeholder="Auto-calculated">
+            <div class="info-text">Leave empty to auto-calculate</div>
         </div>
 
-        <!-- 提交按钮 -->
         <div>
-            <button type="submit">加载航线</button>
+            <button type="submit">Load Route</button>
         </div>
     </form>
 </div>
 
-<!-- 节油量计算表单 -->
+<!-- 节油量计算 -->
 <div class="param-container">
-    <h3>节油量计算</h3>
+    <h3>Fuel Saving Calculation</h3>
     <form action="{{ url_for('fuel_saving') }}" method="get" class="calc-form">
-        <!-- 隐藏字段传递起点终点 -->
         <input type="hidden" name="start_point" value="{{ start_point if start_point else '' }}">
         <input type="hidden" name="end_point" value="{{ end_point if end_point else '' }}">
 
         <div class="form-group">
-            <label>原航速（节）</label>
+            <label>Original Speed (knots)</label>
             <input type="number" name="original_speed" step="0.1" required
-                value="{{ original_speed if original_speed else '' }}" placeholder="例如：15.5">
+                value="{{ original_speed if original_speed else '' }}" placeholder="e.g., 15.5">
         </div>
         <div class="form-group">
-            <label>优化航速（节）</label>
+            <label>Optimized Speed (knots)</label>
             <input type="number" name="optimized_speed" step="0.1" required
-                value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3">
+                value="{{ optimized_speed if optimized_speed else '' }}" placeholder="e.g., 12.3">
         </div>
         <div class="form-group">
-            <label>航程（海里）</label>
+            <label>Route Distance (nautical miles)</label>
             <input type="number" name="distance" step="0.1" required value="{{ distance if distance else '' }}"
-                placeholder="例如：500">
+                placeholder="e.g., 500">
         </div>
         <div>
-            <button type="submit">计算节油量</button>
+            <button type="submit">Calculate Fuel Saving</button>
         </div>
     </form>
 </div>
 
 <!-- 地图容器 -->
 <div class="map-wrapper">
+    {% if not route_points and (start_point or end_point) %}
+    <div class="alert-message">No matching route data found. Please check start and end points.</div>
+    {% elif not start_point or not end_point %}
+    <div class="alert-message">Please enter start and end points, then click "Load Route".</div>
+    {% endif %}
     <div id="map"></div>
 </div>
 
 <script>
     window.onload = function () {
-        // 解析后端传递的航线数据
         const routePoints = JSON.parse('{{ route_points|tojson|safe }}');
 
-        // 初始化地图（如果有航线数据则居中到起点，否则默认上海附近）
+        // 初始化地图（默认中国东部海域）
         const map = new AMap.Map('map', {
-            center: routePoints.length > 0 ? routePoints[0] : [121.487899, 31.249162],
-            zoom: 12,
+            center: [121.5, 31.2],
+            zoom: 8,
             resizeEnable: true
         });
 
@@ -200,34 +190,26 @@
                 strokeColor: '#0033FF',
                 strokeWeight: 5,
                 strokeOpacity: 0.8,
-                strokeStyle: 'solid',
-                strokeDasharray: [10, 5] // 虚线样式，增强视觉效果
+                strokeDasharray: [10, 5]
             });
             polyline.setMap(map);
-            // 自动调整地图视野以显示完整航线
             map.setFitView([polyline]);
         } else if (routePoints.length === 1) {
-            // 只有一个点时显示标记
             new AMap.Marker({
                 position: routePoints[0],
-                title: '航线点',
+                title: 'Route Point',
                 icon: new AMap.Icon({
                     size: new AMap.Size(30, 30),
                     image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
                 })
             }).setMap(map);
-        } else {
-            // 无航线数据时显示提示
-            document.querySelector('.map-wrapper').insertAdjacentHTML('afterbegin',
-                '<div style="text-align:center; padding:10px; color:#666;">请输入起点和终点并点击"加载航线"</div>'
-            );
         }
 
         // 标记起点
         if (routePoints.length > 0) {
             new AMap.Marker({
                 position: routePoints[0],
-                title: '起点',
+                title: 'Start',
                 icon: new AMap.Icon({
                     size: new AMap.Size(30, 30),
                     image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png'
@@ -240,7 +222,7 @@
         if (routePoints.length > 1) {
             new AMap.Marker({
                 position: routePoints[routePoints.length - 1],
-                title: '终点',
+                title: 'End',
                 icon: new AMap.Icon({
                     size: new AMap.Size(30, 30),
                     image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'
