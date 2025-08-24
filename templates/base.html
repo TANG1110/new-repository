@@ -4,12 +4,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}船舶系统{% endblock %}</title>
+    <title>{% block title %}船舶航线与节油计算系统{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0033FF',
+                        secondary: '#4080FF',
+                        neutral: '#6B7280',
+                        light: '#F3F4F6',
+                        dark: '#1F2937'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .shadow-soft {
+                box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+            }
+            .transition-bg {
+                transition: background-color 0.3s ease;
+            }
+            .transition-transform {
+                transition: transform 0.2s ease;
+            }
+        }
+    </style>
     {% block head_css %}{% endblock %}
 </head>
 
-<body style="margin: 0; padding: 20px; background-color: #f5f7fa; font-family: Arial, sans-serif;">
-    {% block content %}{% endblock %}
+<body class="bg-gray-50 font-sans text-dark">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-ship text-primary text-xl"></i>
+                <span class="font-bold text-lg text-primary">船舶航线与节油计算系统</span>
+            </div>
+            <nav>
+                {% if request.path != '/login' and request.path != '/login_page' %}
+                <a href="{{ url_for('login_page') }}"
+                    class="text-neutral hover:text-primary transition-bg px-3 py-2 rounded-md text-sm">
+                    <i class="fa fa-sign-out mr-1"></i>退出登录
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 mt-10">
+        <div class="container mx-auto px-4 py-6 text-center text-neutral text-sm">
+            <p>© 2025 海算云帆团队 版权所有 | 船舶航线与节油计算系统</p>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
 </body>
 
 </html>

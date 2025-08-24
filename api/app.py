@@ -311,8 +311,304 @@ def create_app():
     # 创建模板目录
     if not os.path.exists(template_path):
         os.makedirs(template_path)
+        # 创建基础模板
         with open(os.path.join(template_path, "base.html"), "w", encoding="utf-8") as f:
             f.write("""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>{% block title %}船舶系统{% endblock %}</title>{% block head_css %}{% endblock %}</head><body style="margin:0; padding:20px; background:#f5f7fa; font-family:Arial,sans-serif;">{% block content %}{% endblock %}</body></html>""")
+
+        # 创建登录模板
+        with open(os.path.join(template_path, "login.html"), "w", encoding="utf-8") as f:
+            f.write("""{% extends "base.html" %}
+{% block title %}船舶航线系统 - 登录{% endblock %}
+{% block head_css %}
+<style>
+    .login-container { max-width: 400px; margin: 50px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    .login-title { text-align: center; color: #0033FF; margin-bottom: 30px; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; color: #333; }
+    input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+    button { width: 100%; padding: 10px; background: #0033FF; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #0021aa; }
+    .hint { text-align: center; margin-top: 15px; color: #666; font-size: 14px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="login-container">
+    <h2 class="login-title">船舶航线与节油计算系统</h2>
+    <form action="{{ url_for('login') }}" method="post">
+        <div class="form-group">
+            <label for="username">用户名</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group">
+            <label for="password">密码</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit">登录</button>
+        <p class="hint">默认账号: admin | 密码: 123456</p>
+    </form>
+</div>
+{% endblock %}""")
+
+        # 创建航线地图模板
+        with open(os.path.join(template_path, "route_map.html"), "w", encoding="utf-8") as f:
+            f.write("""{% extends "base.html" %}
+{% block title %}船舶航线与节油计算系统{% endblock %}
+{% block head_css %}
+<style>
+    .page-title { text-align: center; color: #0033FF; font-size: 26px; margin: 20px 0; font-weight: bold; }
+    .param-container { width: 90%; max-width: 1200px; margin: 20px auto; padding: 20px; background: white; border: 1px solid #e5e9f2; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .calc-form { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px; }
+    .form-group { flex: 1; min-width: 180px; }
+    input { width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #e5e9f2; border-radius: 4px; }
+    button { padding: 8px 20px; background: #0033FF; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 23px; transition: background 0.3s; }
+    button:hover { background: #0021aa; }
+    .map-wrapper { width: 90%; max-width: 1200px; margin: 0 auto; position: relative; }
+    #map { width: 100%; height: 500px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .info-text { color: #666; font-size: 14px; margin-top: 5px; font-style: italic; }
+    .map-tip { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; padding: 20px 30px; background: white; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.1); text-align: center; color: #666; font-size: 16px; }
+    .route-info { text-align: center; margin: 10px 0; color: #0033FF; font-size: 14px; }
+</style>
+<script src="https://webapi.amap.com/maps?v=2.0&key=1389a7514ce65016496e0ee1349282b7"></script>
+{% endblock %}
+{% block content %}
+<h1 class="page-title">船舶航线与节油计算系统</h1>
+
+<!-- 参数输入区域 -->
+<div class="param-container">
+    <h3>航线参数设置</h3>
+    <form action="{{ url_for('route_map') }}" method="get" class="calc-form">
+        <div class="form-group">
+            <label>起点</label>
+            <input type="text" name="start_point" value="{{ start_point if start_point else '' }}" placeholder="例如：上海" required>
+        </div>
+        <div class="form-group">
+            <label>终点</label>
+            <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="例如：宁波" required>
+        </div>
+        <div class="form-group">
+            <label>原航速（节）</label>
+            <input type="number" name="original_speed" step="0.1" value="{{ original_speed if original_speed else '' }}" placeholder="例如：15.5">
+        </div>
+        <div class="form-group">
+            <label>优化航速（节）</label>
+            <input type="number" name="optimized_speed" step="0.1" value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3">
+        </div>
+        <div class="form-group">
+            <label>航程（海里）</label>
+            <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}" placeholder="自动计算">
+            <div class="info-text">所有预设航线（如上海-宁波）留空将自动计算航程</div>
+        </div>
+        <div>
+            <button type="submit">加载航线</button>
+        </div>
+    </form>
+</div>
+
+<!-- 节油量计算表单 -->
+<div class="param-container">
+    <h3>节油量计算</h3>
+    <form action="{{ url_for('fuel_saving') }}" method="get" class="calc-form">
+        <input type="hidden" name="start_point" value="{{ start_point if start_point else '' }}">
+        <input type="hidden" name="end_point" value="{{ end_point if end_point else '' }}">
+        <div class="form-group">
+            <label>原航速（节）</label>
+            <input type="number" name="original_speed" step="0.1" required value="{{ original_speed if original_speed else '' }}" placeholder="例如：15.5">
+        </div>
+        <div class="form-group">
+            <label>优化航速（节）</label>
+            <input type="number" name="optimized_speed" step="0.1" required value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3">
+        </div>
+        <div class="form-group">
+            <label>航程（海里）</label>
+            <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}" placeholder="自动计算">
+            <div class="info-text">留空将自动计算</div>
+        </div>
+        <div>
+            <button type="submit">计算节油量</button>
+        </div>
+    </form>
+</div>
+
+<!-- 地图容器 -->
+<div class="map-wrapper">
+    {% if not start_point or not end_point %}
+        <div class="map-tip">请输入起点和终点，点击"加载航线"按钮或回车显示航线</div>
+    {% elif not route_exists %}
+        <div class="map-tip">未找到匹配的航线，请检查起点和终点是否正确</div>
+    {% else %}
+        <div class="route-info">当前航线：{{ start_point }} → {{ end_point }}（共{{ route_points|length }}个坐标点，航程：{{ distance }}海里）</div>
+    {% endif %}
+    <div id="map"></div>
+</div>
+
+<script>
+    window.onload = function () {
+        try {
+            // 解析后端传递的航线数据
+            let routePoints = [];
+            const rawData = '{{ route_points|tojson|safe }}';
+            if (rawData && rawData !== 'null' && rawData !== 'undefined') {
+                routePoints = JSON.parse(rawData);
+                if (!Array.isArray(routePoints)) routePoints = [];
+            }
+
+            // 初始化地图
+            const map = new AMap.Map('map', {
+                center: [121.487899, 31.249162], // 上海附近中心点，适配上海-宁波航线
+                zoom: 9,
+                resizeEnable: true
+            });
+
+            // 绘制航线
+            if (routePoints.length >= 2) {
+                const polyline = new AMap.Polyline({
+                    path: routePoints,
+                    strokeColor: '#0033FF',
+                    strokeWeight: 5,
+                    strokeOpacity: 0.8,
+                    strokeDasharray: [10, 5]
+                });
+                polyline.setMap(map);
+                map.setFitView([polyline]); // 自动适配航线视野
+
+                // 起点标记（红色）
+                new AMap.Marker({
+                    position: routePoints[0],
+                    title: '起点',
+                    icon: new AMap.Icon({size: new AMap.Size(30, 30), image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png'}),
+                    anchor: 'bottom-center'
+                }).setMap(map);
+
+                // 终点标记（蓝色）
+                new AMap.Marker({
+                    position: routePoints[routePoints.length - 1],
+                    title: '终点',
+                    icon: new AMap.Icon({size: new AMap.Size(30, 30), image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png'}),
+                    anchor: 'bottom-center'
+                }).setMap(map);
+            }
+        } catch (error) {
+            console.error("地图加载失败:", error);
+            document.querySelector('.map-tip').innerText = "地图加载失败，请刷新页面重试";
+        }
+    };
+</script>
+{% endblock %}""")
+
+        # 创建节油量结果模板
+        with open(os.path.join(template_path, "fuel_result.html"), "w", encoding="utf-8") as f:
+            f.write("""{% extends "base.html" %}
+{% block title %}节油量计算结果{% endblock %}
+{% block head_css %}
+<style>
+    .result-container { width: 90%; max-width: 800px; margin: 30px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .result-title { text-align: center; color: #0033FF; margin-bottom: 20px; }
+    .result-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    .result-table th, .result-table td { border: 1px solid #e5e9f2; padding: 12px; text-align: left; }
+    .result-table th { background-color: #f5f7fa; color: #333; }
+    .highlight { color: #0033FF; font-weight: bold; }
+    .actions { text-align: center; margin-top: 30px; }
+    .btn { display: inline-block; padding: 10px 20px; background: #0033FF; color: white; text-decoration: none; border-radius: 4px; margin: 0 10px; }
+    .btn:hover { background: #0021aa; }
+    .back-btn { background: #666; }
+    .back-btn:hover { background: #444; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="result-container">
+    <h2 class="result-title">节油量计算结果</h2>
+    
+    <table class="result-table">
+        <tr>
+            <th>航线</th>
+            <td>{{ start_point }} → {{ end_point }}</td>
+        </tr>
+        <tr>
+            <th>原航速</th>
+            <td>{{ original }} 节</td>
+        </tr>
+        <tr>
+            <th>优化航速</th>
+            <td>{{ optimized }} 节</td>
+        </tr>
+        <tr>
+            <th>航程</th>
+            <td>{{ distance }} 海里</td>
+        </tr>
+        <tr>
+            <th>节油量</th>
+            <td class="highlight">{{ saving }} 吨</td>
+        </tr>
+    </table>
+    
+    <div class="actions">
+        <a href="{{ url_for('export_pdf', start_point=start_point, end_point=end_point, original_speed=original, optimized_speed=optimized, distance=distance, saving=saving) }}" class="btn">导出PDF报告</a>
+        <a href="{{ url_for('route_map', start_point=start_point, end_point=end_point, original_speed=original, optimized_speed=optimized, distance=distance) }}" class="btn back-btn">返回修改参数</a>
+    </div>
+</div>
+{% endblock %}""")
+
+        # 创建评委页面模板
+        with open(os.path.join(template_path, "judge_easter_egg.html"), "w", encoding="utf-8") as f:
+            f.write("""{% extends "base.html" %}
+{% block title %}评委专页{% endblock %}
+{% block head_css %}
+<style>
+    .team-container { max-width: 800px; margin: 30px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .team-title { color: #0033FF; text-align: center; margin-bottom: 30px; }
+    .info-section { margin-bottom: 25px; }
+    .info-section h3 { color: #333; border-bottom: 1px solid #e5e9f2; padding-bottom: 8px; margin-bottom: 15px; }
+    .member-list { list-style: none; padding: 0; }
+    .member-list li { padding: 5px 0; border-bottom: 1px dashed #f0f0f0; }
+    .tech-list { display: flex; flex-wrap: wrap; gap: 10px; }
+    .tech-item { background: #f5f7fa; padding: 5px 10px; border-radius: 4px; font-size: 14px; }
+    .back-link { display: block; text-align: center; margin-top: 30px; color: #0033FF; text-decoration: none; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="team-container">
+    <h2 class="team-title">{{ team_info.team_name }} 团队信息</h2>
+    
+    <div class="info-section">
+        <h3>项目介绍</h3>
+        <p>{{ team_info.project_intro }}</p>
+    </div>
+    
+    <div class="info-section">
+        <h3>团队成员</h3>
+        <ul class="member-list">
+            {% for member in team_info.members %}
+            <li>{{ member }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <div class="info-section">
+        <h3>技术栈</h3>
+        <div class="tech-list">
+            {% for tech in team_info.tech_stack %}
+            <span class="tech-item">{{ tech }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="info-section">
+        <h3>开发时间</h3>
+        <p>{{ team_info.development_time }}</p>
+    </div>
+    
+    <div class="info-section">
+        <h3>项目成果</h3>
+        <ul>
+            {% for achievement in team_info.achievements %}
+            <li>{{ achievement }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <a href="{{ url_for('route_map') }}" class="back-link">返回系统首页</a>
+</div>
+{% endblock %}""")
 
     app = Flask(__name__, static_folder=static_path, template_folder=template_path)
     app.config.from_mapping(CONFIG)
@@ -391,7 +687,8 @@ def route_map():
         end_point=end,
         original_speed=original,
         optimized_speed=optimized,
-        distance=final_dist
+        distance=final_dist,
+        route_exists=len(route_points) > 0  # 新增：标记航线是否存在
     )
 
 @app.route("/fuel_saving", methods=["GET"])
@@ -478,3 +775,4 @@ def export_pdf():
 
 if __name__ == "__main__":
     app.run(debug=CONFIG["DEBUG"], port=CONFIG["PORT"], host=CONFIG["HOST"])
+    

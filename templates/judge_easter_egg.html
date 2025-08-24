@@ -1,52 +1,76 @@
 {% extends "base.html" %}
 
-{% block title %}评委专属彩蛋{% endblock %}
+{% block title %}评委专页 - 船舶航线系统{% endblock %}
 
 {% block content %}
-<div
-    style="max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-    <!-- 彩蛋标题 -->
-    <h1 style="color: #2c3e50; text-align: center; margin-bottom: 30px;">🎉 评委专属区域 🎉</h1>
-
-    <!-- 团队信息卡片 -->
-    <div style="margin-bottom: 25px;">
-        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">团队信息</h3>
-        <p><strong>团队名称：</strong> {{ team_info.team_name }}</p>
-        <p><strong>团队成员：</strong> {{ team_info.members|join("，") }}</p>
-        <p><strong>开发时间：</strong> {{ team_info.development_time }}</p>
+<div class="max-w-4xl mx-auto">
+    <div class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+            <i class="fa fa-trophy text-2xl text-primary"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-primary mb-2">{{ team_info.team_name }} 团队信息</h1>
+        <p class="text-neutral">船舶航线与节油计算系统 - 项目详情</p>
     </div>
 
-    <!-- 项目介绍 -->
-    <div style="margin-bottom: 25px;">
-        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">项目介绍</h3>
-        <p>{{ team_info.project_intro }}</p>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- 项目介绍卡片 -->
+        <div class="bg-white rounded-xl shadow-soft p-6 col-span-1 lg:col-span-2">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa fa-book text-primary mr-2"></i>项目介绍
+            </h2>
+            <p class="text-gray-700 leading-relaxed">{{ team_info.project_intro }}</p>
+
+            <h2 class="text-xl font-semibold mt-6 mb-4 flex items-center">
+                <i class="fa fa-calendar text-primary mr-2"></i>开发时间
+            </h2>
+            <p class="text-gray-700">{{ team_info.development_time }}</p>
+
+            <h2 class="text-xl font-semibold mt-6 mb-4 flex items-center">
+                <i class="fa fa-star text-primary mr-2"></i>项目成果
+            </h2>
+            <ul class="space-y-2 text-gray-700">
+                {% for achievement in team_info.achievements %}
+                <li class="flex items-start">
+                    <i class="fa fa-check-circle text-green-500 mt-1 mr-2"></i>
+                    <span>{{ achievement }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- 团队信息卡片 -->
+        <div class="bg-white rounded-xl shadow-soft p-6">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa fa-users text-primary mr-2"></i>团队成员
+            </h2>
+            <ul class="space-y-3 mb-6">
+                {% for member in team_info.members %}
+                <li class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-bg">
+                    <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mr-3">
+                        <i class="fa fa-user text-primary text-sm"></i>
+                    </div>
+                    <span>{{ member }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i class="fa fa-code text-primary mr-2"></i>技术栈
+            </h2>
+            <div class="flex flex-wrap gap-2">
+                {% for tech in team_info.tech_stack %}
+                <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                    {{ tech }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 
-    <!-- 技术栈 -->
-    <div style="margin-bottom: 25px;">
-        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">技术栈</h3>
-        <ul style="list-style-type: disc; padding-left: 20px;">
-            {% for tech in team_info.tech_stack %}
-            <li>{{ tech }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <!-- 完成成果 -->
-    <div style="margin-bottom: 25px;">
-        <h3 style="color: #3498db; border-bottom: 2px solid #eee; padding-bottom: 8px;">完成成果</h3>
-        <ul style="list-style-type: square; padding-left: 20px;">
-            {% for achievement in team_info.achievements %}
-            <li>{{ achievement }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <!-- 返回主页按钮 -->
-    <div style="text-align: center; margin-top: 30px;">
+    <div class="text-center">
         <a href="{{ url_for('route_map') }}"
-            style="display: inline-block; padding: 10px 20px; background: #2ecc71; color: white; text-decoration: none; border-radius: 4px;">
-            返回系统首页
+            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary hover:bg-primary/90 transition duration-150 ease-in-out shadow-sm">
+            <i class="fa fa-ship mr-2"></i>返回系统首页
         </a>
     </div>
 </div>

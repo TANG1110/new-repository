@@ -4,188 +4,163 @@
 
 {% block head_css %}
 <style>
-    .page-title {
-        text-align: center;
-        color: #0033FF;
-        font-size: 26px;
-        margin: 20px 0;
-        font-weight: bold;
-    }
-
-    .param-container {
-        width: 90%;
-        max-width: 1200px;
-        margin: 20px auto;
-        padding: 20px;
-        background: white;
-        border: 1px solid #e5e9f2;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-
-    .calc-form {
-        display: flex;
-        gap: 20px;
-        flex-wrap: wrap;
-        margin-top: 15px;
-    }
-
-    .form-group {
-        flex: 1;
-        min-width: 180px;
-    }
-
-    input {
-        width: 100%;
-        padding: 8px;
-        margin-top: 5px;
-        border: 1px solid #e5e9f2;
-        border-radius: 4px;
-    }
-
-    button {
-        padding: 8px 20px;
-        background: #0033FF;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        margin-top: 23px;
-        transition: background 0.3s;
-    }
-
-    button:hover {
-        background: #0021aa;
-    }
-
-    .map-wrapper {
-        width: 90%;
-        max-width: 1200px;
-        margin: 0 auto;
-        position: relative;
-    }
-
     #map {
         width: 100%;
         height: 500px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 0.5rem;
     }
 
-    .info-text {
-        color: #666;
-        font-size: 14px;
-        margin-top: 5px;
-        font-style: italic;
-    }
-
-    .map-tip {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 10;
-        padding: 20px 30px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
-        text-align: center;
-        color: #666;
-        font-size: 16px;
-    }
-
-    .route-info {
-        text-align: center;
-        margin: 10px 0;
-        color: #0033FF;
-        font-size: 14px;
+    .map-placeholder {
+        width: 100%;
+        height: 500px;
+        border-radius: 0.5rem;
+        background-color: #F9FAFB;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6B7280;
+        border: 1px dashed #D1D5DB;
     }
 </style>
 <script src="https://webapi.amap.com/maps?v=2.0&key=1389a7514ce65016496e0ee1349282b7"></script>
 {% endblock %}
 
 {% block content %}
-<h1 class="page-title">船舶航线与节油计算系统</h1>
+<div class="mb-8 text-center">
+    <h1 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-primary mb-2">船舶航线与节油计算系统</h1>
+    <p class="text-neutral">高效管理航线，科学计算节油，优化船舶运营</p>
+</div>
 
-<!-- 参数输入区域 -->
-<div class="param-container">
-    <h3>航线参数设置</h3>
-    <form action="{{ url_for('route_map') }}" method="get" class="calc-form">
-        <div class="form-group">
-            <label>起点</label>
-            <input type="text" name="start_point" value="{{ start_point if start_point else '' }}" placeholder="例如：上海">
+<!-- 航线参数设置卡片 -->
+<div class="bg-white rounded-xl shadow-soft p-6 mb-6">
+    <h2 class="text-xl font-semibold mb-4 flex items-center">
+        <i class="fa fa-map-marker text-primary mr-2"></i>航线参数设置
+    </h2>
+    <form action="{{ url_for('route_map') }}" method="get" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div class="col-span-1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">起点</label>
+            <input type="text" name="start_point" value="{{ start_point if start_point else '' }}" placeholder="例如：上海"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
         </div>
-        <div class="form-group">
-            <label>终点</label>
-            <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="例如：宁波">
+        <div class="col-span-1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">终点</label>
+            <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="例如：宁波"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
         </div>
-        <div class="form-group">
-            <label>原航速（节）</label>
+        <div class="col-span-1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">原航速（节）</label>
             <input type="number" name="original_speed" step="0.1" value="{{ original_speed if original_speed else '' }}"
-                placeholder="例如：15.5">
+                placeholder="例如：15.5"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
         </div>
-        <div class="form-group">
-            <label>优化航速（节）</label>
+        <div class="col-span-1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">优化航速（节）</label>
             <input type="number" name="optimized_speed" step="0.1"
-                value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3">
+                value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
         </div>
-        <div class="form-group">
-            <label>航程（海里）</label>
-            <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
-                placeholder="自动计算">
-            <div class="info-text">留空则自动计算航线距离</div>
-        </div>
-        <div>
-            <button type="submit">加载航线</button>
+        <div class="col-span-1 flex flex-col justify-end">
+            <button type="submit"
+                class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                <i class="fa fa-search mr-2"></i>加载航线
+            </button>
         </div>
     </form>
 </div>
 
-<!-- 节油量计算表单 -->
-<div class="param-container">
-    <h3>节油量计算</h3>
-    <form action="{{ url_for('fuel_saving') }}" method="get" class="calc-form">
+<!-- 航程和节油量计算卡片 -->
+<div class="bg-white rounded-xl shadow-soft p-6 mb-6">
+    <h2 class="text-xl font-semibold mb-4 flex items-center">
+        <i class="fa fa-calculator text-primary mr-2"></i>节油量计算
+    </h2>
+    <form action="{{ url_for('fuel_saving') }}" method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <input type="hidden" name="start_point" value="{{ start_point if start_point else '' }}">
         <input type="hidden" name="end_point" value="{{ end_point if end_point else '' }}">
-        <div class="form-group">
-            <label>原航速（节）</label>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">原航速（节）</label>
             <input type="number" name="original_speed" step="0.1" required
-                value="{{ original_speed if original_speed else '' }}" placeholder="例如：15.5">
-        </div>
-        <div class="form-group">
-            <label>优化航速（节）</label>
-            <input type="number" name="optimized_speed" step="0.1" required
-                value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3">
-        </div>
-        <div class="form-group">
-            <label>航程（海里）</label>
-            <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
-                placeholder="自动计算">
-            <div class="info-text">上海-宁波航线留空将自动计算</div>
+                value="{{ original_speed if original_speed else '' }}" placeholder="例如：15.5"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
         </div>
         <div>
-            <button type="submit">计算节油量</button>
+            <label class="block text-sm font-medium text-gray-700 mb-1">优化航速（节）</label>
+            <input type="number" name="optimized_speed" step="0.1" required
+                value="{{ optimized_speed if optimized_speed else '' }}" placeholder="例如：12.3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">航程（海里）</label>
+            <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
+                placeholder="自动计算"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+            <p class="text-xs text-neutral mt-1">留空将自动计算</p>
+        </div>
+        <div class="flex flex-col justify-end">
+            <button type="submit"
+                class="w-full bg-secondary hover:bg-secondary/90 text-white font-medium py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                <i class="fa fa-line-chart mr-2"></i>计算节油量
+            </button>
         </div>
     </form>
 </div>
 
-<!-- 地图容器 -->
-<div class="map-wrapper">
-    {% if not start_point or not end_point %}
-    <div class="map-tip">请输入起点和终点，点击"加载航线"按钮显示航线</div>
-    {% elif not route_points %}
-    <div class="map-tip">未找到匹配的航线，请检查起点和终点是否正确</div>
-    {% else %}
-    <div class="route-info">当前航线：{{ start_point }} → {{ end_point }}（共{{ route_points|length }}个坐标点，航程：{{ distance }}海里）
+<!-- 地图展示区域 -->
+<div class="bg-white rounded-xl shadow-soft p-6 mb-6">
+    <h2 class="text-xl font-semibold mb-4 flex items-center">
+        <i class="fa fa-map text-primary mr-2"></i>航线地图
+    </h2>
+
+    {% if route_exists %}
+    <div class="mb-3 text-sm text-primary text-center">
+        当前航线：{{ start_point }} → {{ end_point }}
+        （共{{ route_points|length }}个坐标点，航程：{{ distance }}海里）
     </div>
     {% endif %}
-    <div id="map"></div>
+
+    <div id="map" class="shadow-inner"></div>
+
+    {% if not start_point or not end_point %}
+    <div class="map-placeholder absolute inset-0 z-10">
+        <div class="text-center px-6">
+            <i class="fa fa-info-circle text-2xl mb-2 text-neutral"></i>
+            <p>请输入起点和终点，点击"加载航线"按钮或回车显示航线</p>
+        </div>
+    </div>
+    {% elif not route_exists %}
+    <div class="map-placeholder absolute inset-0 z-10">
+        <div class="text-center px-6">
+            <i class="fa fa-exclamation-triangle text-2xl mb-2 text-amber-500"></i>
+            <p>未找到匹配的航线，请检查起点和终点是否正确</p>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
+<!-- 系统提示卡片 -->
+<div class="bg-blue-50 border-l-4 border-primary p-4 rounded-r-lg">
+    <div class="flex">
+        <div class="flex-shrink-0">
+            <i class="fa fa-lightbulb-o text-primary"></i>
+        </div>
+        <div class="ml-3">
+            <p class="text-sm text-blue-700">
+                <span class="font-medium">系统提示：</span>
+                系统支持上海-宁波、广州-深圳等多条预设航线，输入起点终点后自动匹配。
+                节油量计算基于行业标准公式：(原航速-优化航速)×航程×0.8。
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
     window.onload = function () {
         try {
-            // 解析航线数据
+            // 解析后端传递的航线数据
             let routePoints = [];
             const rawData = '{{ route_points|tojson|safe }}';
             if (rawData && rawData !== 'null' && rawData !== 'undefined') {
@@ -195,53 +170,91 @@
 
             // 初始化地图
             const map = new AMap.Map('map', {
-                center: [121.487899, 31.249162],
-                zoom: 10,
-                resizeEnable: true
+                center: [121.487899, 31.249162], // 上海附近中心点，适配上海-宁波航线
+                zoom: 9,
+                resizeEnable: true,
+                mapStyle: 'amap://styles/light'
             });
 
-            // 有航线数据才绘制
-            if (routePoints.length > 1) {
+            // 添加地图控件
+            map.addControl(new AMap.ToolBar({
+                position: 'RB'
+            }));
+
+            map.addControl(new AMap.Scale());
+
+            // 绘制航线
+            if (routePoints.length >= 2) {
+                // 创建航线
                 const polyline = new AMap.Polyline({
                     path: routePoints,
                     strokeColor: '#0033FF',
                     strokeWeight: 5,
                     strokeOpacity: 0.8,
-                    strokeDasharray: [10, 5]
+                    strokeDasharray: [10, 5],
+                    zIndex: 50
                 });
                 polyline.setMap(map);
-                map.setFitView([polyline]);
 
-                // 起点标记（红）
+                // 自动调整视野以显示完整航线
+                map.setFitView([polyline], false, [50, 50]);
+
+                // 起点标记（红色）
                 new AMap.Marker({
                     position: routePoints[0],
                     title: '起点',
-                    icon: new AMap.Icon({ size: new AMap.Size(30, 30), image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png' }),
-                    anchor: 'bottom-center'
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(36, 36),
+                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png',
+                        imageSize: new AMap.Size(36, 36)
+                    }),
+                    anchor: 'bottom-center',
+                    zIndex: 100
                 }).setMap(map);
 
-                // 终点标记（蓝）
+                // 终点标记（蓝色）
                 new AMap.Marker({
                     position: routePoints[routePoints.length - 1],
                     title: '终点',
-                    icon: new AMap.Icon({ size: new AMap.Size(30, 30), image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png' }),
-                    anchor: 'bottom-center'
+                    icon: new AMap.Icon({
+                        size: new AMap.Size(36, 36),
+                        image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
+                        imageSize: new AMap.Size(36, 36)
+                    }),
+                    anchor: 'bottom-center',
+                    zIndex: 100
                 }).setMap(map);
-            } else if (routePoints.length === 1) {
-                new AMap.Marker({
-                    position: routePoints[0],
-                    title: '航线点',
-                    icon: new AMap.Icon({ size: new AMap.Size(30, 30), image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png' })
-                }).setMap(map);
-            }
 
+                // 添加途经点标记
+                if (routePoints.length > 2) {
+                    for (let i = 1; i < routePoints.length - 1; i++) {
+                        new AMap.Marker({
+                            position: routePoints[i],
+                            title: `途经点 ${i}`,
+                            icon: new AMap.Icon({
+                                size: new AMap.Size(16, 16),
+                                image: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_g.png',
+                                imageSize: new AMap.Size(16, 16)
+                            }),
+                            anchor: 'center',
+                            zIndex: 80
+                        }).setMap(map);
+                    }
+                }
+            }
         } catch (error) {
             console.error("地图加载失败:", error);
-            const mapWrapper = document.querySelector('.map-wrapper');
-            if (!mapWrapper.querySelector('.map-tip')) {
-                mapWrapper.insertAdjacentHTML('afterbegin',
-                    '<div class="map-tip" style="color:#dc3545;">地图加载失败，请刷新页面重试</div>'
-                );
+            const mapContainer = document.getElementById('map');
+            if (mapContainer) {
+                mapContainer.innerHTML = `
+                    <div class="map-placeholder">
+                        <div class="text-center px-6">
+                            <i class="fa fa-exclamation-circle text-2xl mb-2 text-red-500"></i>
+                            <p>地图加载失败，请刷新页面重试</p>
+                            <p class="text-xs mt-2 text-neutral">错误信息: ${error.message}</p>
+                        </div>
+                    </div>
+                `;
             }
         }
     };
