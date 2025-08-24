@@ -121,22 +121,30 @@ def calculate_route_distance(points: list) -> float:
     return round(total_km / 1.852, 2)
 
 # 优化后的地点翻译函数
+# 1. 增强translate_location函数的日志和容错性
 def translate_location(chinese_name):
-    """优化的中文地点到英文翻译函数，提高匹配成功率"""
+    """优化的中文地点到英文翻译函数，添加调试日志"""
+    # 记录原始输入以便调试
+    logger.debug(f"翻译地点: {chinese_name}")
+    
     if not chinese_name:
+        logger.warning("尝试翻译空的地点名称")
         return "Not Specified"
     
     # 预处理：去除空格、常见后缀（港、市），统一处理
     cleaned_name = chinese_name.strip().replace(" ", "").replace("港", "").replace("市", "")
+    logger.debug(f"清理后的地点名称: {cleaned_name}")
     
     # 1. 尝试精确匹配
     translated = LOCATION_TRANSLATIONS.get(cleaned_name, None)
     if translated:
+        logger.debug(f"精确匹配成功: {translated}")
         return translated
     
     # 2. 尝试反向包含匹配（如"上海市"包含"上海"）
     for cn, en in LOCATION_TRANSLATIONS.items():
         if cleaned_name in cn or cn in cleaned_name:
+            logger.debug(f"反向匹配成功: {en}")
             return en
     
     # 3. 处理拼音输入（支持全拼匹配）
@@ -152,11 +160,54 @@ def translate_location(chinese_name):
     # 转换为小写并尝试拼音匹配
     lower_name = cleaned_name.lower()
     if lower_name in pinyin_mapping:
+        logger.debug(f"拼音匹配成功: {pinyin_mapping[lower_name]}")
         return pinyin_mapping[lower_name]
     
-    # 4. 所有匹配失败时，返回首字母大写的原始名称
+    # 4. 所有匹配失败时，记录警告并返回处理后的名称
+    logger.warning(f"无法翻译地点: {chinese_name}")
     return chinese_name.title()
 
+# 2. 在export_pdf路由中添加日志，检查数据传递
+@app.route("/export_pdf")
+def export_pdf():
+    try:
+        start = request.args.get("start_point", "").strip()
+        end = request.args.get("end_point", "").strip()
+        
+        # 记录接收到的起点终点
+        logger.debug(f"导出PDF - 起点: {start}, 终点: {end}")
+        
+        route_points = get_preset_route(start, end)
+        if not route_points:
+            route_points = read_route_data()
+            logger.debug("使用默认航线数据")
+
+        fuel_data = {
+            "start": start or "未知起点",
+            "end": end or "未知终点",
+            "original": request.args.get("original_speed", "未填写"),
+            "optimized": request.args.get("optimized_speed", "未填写"),
+            "distance": request.args.get("distance", str(calculate_route_distance(route_points))),
+            "saving": request.args.get("saving", "未计算")
+        }
+        
+        # 记录即将传入PDF生成函数的数据
+        logger.debug(f"传入PDF的燃料数据: {fuel_data}")
+
+        pdf_buffer = generate_route_report(route_points, fuel_data)
+        response = make_response(send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"船舶航线报告_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+        ))
+        response.headers['Cache-Control'] = 'no-store, no-cache'
+        return response
+
+    except Exception as e:
+        logger.error(f"❌ PDF导出失败: {str(e)}")
+        return f"PDF导出失败：{str(e)}", 500
+    
 # --------------------------- PDF生成核心函数 ---------------------------
 def generate_route_report(route_points, fuel_data):
     buffer = BytesIO()
