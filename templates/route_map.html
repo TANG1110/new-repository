@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}船舶航线可视化系统{% endblock %}
+{% block title %}船舶航线可视化页面{% endblock %}
 
 {% block head_css %}
 <style>
@@ -98,7 +98,7 @@
 
 {% block content %}
 <!-- 标题居中 -->
-<h1 class="page-title">船舶航线可视化系统</h1>
+<h1 class="page-title">船舶航线可视化页面</h1>
 
 <!-- 参数输入区域（整合起点终点和航速参数） -->
 <div class="param-container">
@@ -136,7 +136,7 @@
         <div class="form-group">
             <label>航程（海里）</label>
             <input type="number" name="distance" step="0.1" value="{{ distance if distance else '' }}"
-                placeholder="自动计算">
+                placeholder="例如：150">
             <div class="info-text">留空则自动计算航线距离</div>
         </div>
 
