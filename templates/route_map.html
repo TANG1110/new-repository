@@ -98,7 +98,7 @@
 
 {% block content %}
 <!-- 标题居中 -->
-<h1 class="page-title">船舶航线可视化系统</h1>
+<h1 class="page-title">船舶航线可视化页面</h1>
 
 <!-- 参数输入区域（整合起点终点和航速参数） -->
 <div class="param-container">
@@ -107,14 +107,14 @@
         <!-- 新增：起点输入框 -->
         <div class="form-group">
             <label>起点</label>
-            <input type="text" name="start_point" value="{{ start_point if start_point else '' }}" placeholder="例如：上海">
+            <input type="text" name="start_point" value="{{ start_point if start_point else '' }}" placeholder="例如：宁波">
             <!-- 删除“支持城市名称（如上海、宁波）”提示文本 -->
         </div>
 
         <!-- 新增：终点输入框 -->
         <div class="form-group">
             <label>终点</label>
-            <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="例如：宁波">
+            <input type="text" name="end_point" value="{{ end_point if end_point else '' }}" placeholder="例如：上海">
             <!-- 删除“支持城市名称（如上海、宁波）”提示文本 -->
         </div>
 
