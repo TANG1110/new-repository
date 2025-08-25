@@ -212,7 +212,7 @@ def generate_route_report(route_points, fuel_data):
 
     elements = []
     # 标题和时间（英文）
-    elements.append(Paragraph("Ship Route Visualization System Report", styles['Title_EN']))
+    elements.append(Paragraph("Ship Route  and Fuel-Saving CalculationSystem Report", styles['Title_EN']))
     elements.append(Paragraph(f"Generation Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal_EN']))
     elements.append(Spacer(1, 6))
 
@@ -462,7 +462,7 @@ def export_pdf():
             pdf_buffer,
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=f"船舶航线报告_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
+            download_name=f"船舶航线与节油计算报告_{datetime.now().strftime('%Y%m%d%H%M%S')}.pdf"
         ))
         response.headers['Cache-Control'] = 'no-store, no-cache'
         return response
