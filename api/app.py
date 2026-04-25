@@ -342,7 +342,7 @@ def login():
         # 登录成功时初始化session
         session['username'] = user
         return redirect(url_for("login_success", username=user))
-    if user == "judge" and pwd == "ship2025":
+    if user == "judge" and pwd == "ship2026":
         session['username'] = user
         return render_template("judge_easter_egg.html", team_info={
             "team_name": "海算云帆",
