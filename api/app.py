@@ -346,10 +346,10 @@ def login():
         session['username'] = user
         return render_template("judge_easter_egg.html", team_info={
             "team_name": "海算云帆",
-            "members": ["陈倚薇（队长/计算机组）", "刘迪瑶（计算机组）", "唐辉婷（计算机组）","吴珊（金融组）","周子煜（设计组）"],
+            "members": ["陈同学（队长/计算机组）", "刘同学（计算机组）", "唐同学（计算机组）","吴同学（金融组）","周同学（设计组）"],
             "project_intro": "船舶航线可视化与节油系统：支持航线展示、油耗计算和PDF报告导出功能，帮助优化船舶航行效率。",
             "tech_stack": ["Flask（后端框架）", "高德地图API（地图服务）", "ReportLab（PDF生成）", "HTML/CSS（前端界面）"],
-            "development_time": "2025年8月12日-8月25日",
+            "development_time": "2025年8月12日-8月25日完成基本功能，后续会持续优化",
             "achievements": ["完成基础框架搭建", "实现航线可视化", "开发节油计算功能", "支持PDF报告导出", "适配移动端访问"]
         })
     return "用户名或密码错误（正确：admin/123456）", 401
